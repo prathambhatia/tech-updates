@@ -1,0 +1,183 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+type IngestApiResponse = {
+  ok?: boolean;
+  message?: string;
+};
+
+function toErrorMessage(input: unknown): string {
+  if (input instanceof Error) {
+    return input.message;
+  }
+
+  return "Failed to fetch latest blogs. Please try again.";
+}
+
+export function IngestionControls() {
+  const [isRunning, setIsRunning] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const progressTimerRef = useRef<number | null>(null);
+
+  const clearProgressTimer = () => {
+    if (progressTimerRef.current !== null) {
+      window.clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  };
+
+  const startProgressTimer = () => {
+    clearProgressTimer();
+    progressTimerRef.current = window.setInterval(() => {
+      setProgress((current) => {
+        if (current >= 94) {
+          return current;
+        }
+
+        if (current < 35) {
+          return current + 7;
+        }
+
+        if (current < 70) {
+          return current + 3;
+        }
+
+        return current + 1;
+      });
+    }, 650);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearProgressTimer();
+    };
+  }, []);
+
+  const runIngestion = async () => {
+    if (isRunning) {
+      setIsModalOpen(true);
+      return;
+    }
+
+    setIsRunning(true);
+    setIsModalOpen(true);
+    setErrorMessage(null);
+    setProgress(8);
+    startProgressTimer();
+
+    try {
+      const response = await fetch("/api/ingest", {
+        method: "POST"
+      });
+
+      const payload = (await response.json().catch(() => null)) as IngestApiResponse | null;
+
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(payload?.message ?? "Ingestion request failed.");
+      }
+
+      clearProgressTimer();
+      setProgress(100);
+      setIsRunning(false);
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      clearProgressTimer();
+      setIsRunning(false);
+      setProgress(0);
+      setErrorMessage(toErrorMessage(error));
+      setIsModalOpen(true);
+    }
+  };
+
+  const displayProgress = isRunning ? Math.min(99, Math.round(progress)) : Math.min(100, Math.round(progress));
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={runIngestion}
+        className="rounded-full border border-accent-600 bg-accent-600 px-3 py-1 text-sm font-semibold text-white transition hover:bg-accent-500 dark:border-teal-400 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+      >
+        {isRunning ? "Fetching..." : "Fetch Latest Blogs"}
+      </button>
+
+      {isRunning && !isModalOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsModalOpen(true)}
+          className="fixed bottom-4 right-4 z-50 rounded-full border border-accent-600 bg-white px-4 py-2 text-sm font-semibold text-accent-700 shadow-paper dark:border-teal-300 dark:bg-slate-900 dark:text-teal-200"
+        >
+          Fetching latest blogs... {displayProgress}%
+        </button>
+      ) : null}
+
+      {isModalOpen ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-ink-950/45 px-4 dark:bg-slate-950/65"
+          onClick={() => setIsModalOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-ink-200 bg-white p-5 shadow-paper dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_22px_50px_rgba(2,8,23,0.62)]"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Latest blog fetch progress"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.17em] text-ink-500 dark:text-slate-400">
+                  Ingestion
+                </p>
+                <h3 className="mt-1 font-display text-2xl font-semibold text-ink-900 dark:text-slate-100">
+                  Fetching Latest Blogs
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-full border border-ink-300 px-2 py-0.5 text-xs font-semibold text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+              >
+                Close
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm text-ink-600 dark:text-slate-300">
+              {errorMessage
+                ? "The fetch failed. You can retry."
+                : "You can close this popup. Fetching will continue in the background."}
+            </p>
+
+            <div className="mt-4">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-ink-100 dark:bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-accent-600 transition-all duration-500 dark:bg-teal-400"
+                  style={{ width: `${Math.max(6, Math.min(100, progress))}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs font-medium text-ink-500 dark:text-slate-400">
+                {errorMessage ? errorMessage : `${displayProgress}% complete`}
+              </p>
+            </div>
+
+            {errorMessage ? (
+              <button
+                type="button"
+                onClick={runIngestion}
+                className="mt-4 w-full rounded-lg border border-accent-600 bg-accent-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-accent-500 dark:border-teal-400 dark:bg-teal-500 dark:text-slate-900 dark:hover:bg-teal-400"
+              >
+                Retry Fetch
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
