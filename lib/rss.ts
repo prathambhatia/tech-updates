@@ -1,5 +1,7 @@
 import Parser from "rss-parser";
 
+import { inferExplicitDateFromText } from "@/utils/date";
+
 export type ParsedRssItem = {
   title: string;
   url: string;
@@ -60,8 +62,10 @@ export async function parseFeed(rssUrl: string): Promise<ParsedRssItem[]> {
 
       const publishedAt = item.isoDate ?? item.pubDate;
       const rawText = pickRichestText([item["content:encoded"], item.content, item.contentSnippet, item.title]);
-      const parsedPublishedAt = publishedAt ? new Date(publishedAt) : new Date();
-      const safePublishedAt = Number.isNaN(parsedPublishedAt.getTime()) ? new Date() : parsedPublishedAt;
+      const parsedPublishedAt = publishedAt ? new Date(publishedAt) : null;
+      const inferredPublishedAt = inferExplicitDateFromText(`${item.title ?? ""} ${rawText}`);
+      const safePublishedAt =
+        parsedPublishedAt && !Number.isNaN(parsedPublishedAt.getTime()) ? parsedPublishedAt : inferredPublishedAt ?? new Date();
 
       return {
         title: item.title.trim(),

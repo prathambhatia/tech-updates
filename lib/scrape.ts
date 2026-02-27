@@ -6,6 +6,25 @@ export type FallbackItem = {
   rawText: string;
 };
 
+const SCRAPE_TIMEOUT_MS = 12_000;
+const SCRAPE_USER_AGENT = "AI-Systems-Intelligence/1.0";
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = SCRAPE_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function normalizeWhitespace(input: string): string {
   return input.replace(/\s+/g, " ").trim();
 }
@@ -23,9 +42,9 @@ function toAbsoluteUrl(baseUrl: string, href: string): string | null {
 }
 
 export async function scrapeFeedFallback(sourceUrl: string): Promise<FallbackItem[]> {
-  const response = await fetch(sourceUrl, {
+  const response = await fetchWithTimeout(sourceUrl, {
     headers: {
-      "User-Agent": "AI-Systems-Intelligence/1.0"
+      "User-Agent": SCRAPE_USER_AGENT
     }
   });
 
@@ -70,9 +89,9 @@ export async function scrapeFeedFallback(sourceUrl: string): Promise<FallbackIte
 
 export async function extractArticleText(articleUrl: string): Promise<string | null> {
   try {
-    const response = await fetch(articleUrl, {
+    const response = await fetchWithTimeout(articleUrl, {
       headers: {
-        "User-Agent": "AI-Systems-Intelligence/1.0"
+        "User-Agent": SCRAPE_USER_AGENT
       }
     });
 

@@ -25,5 +25,6 @@ export type IngestAllResult = {
   fetchedCount: number;
   createdCount: number;
   skippedCount: number;
+  repairedDateCount: number;
   results: SourceIngestionResult[];
 };

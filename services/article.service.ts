@@ -6,6 +6,7 @@ import { countWords, estimateReadingTime } from "@/utils/text";
 
 const CATEGORY_PAGE_SIZE = 12;
 const SEARCH_PAGE_SIZE = 12;
+const INGESTION_PAGE_SIZE = 12;
 
 const SOURCE_POPULARITY_WEIGHTS: Record<string, number> = {
   OpenAI: 22,
@@ -543,5 +544,33 @@ export async function searchArticles(params: {
     totalPages: Math.max(1, Math.ceil(sorted.length / SEARCH_PAGE_SIZE)),
     page: safePage,
     pageSize: SEARCH_PAGE_SIZE
+  };
+}
+
+export async function getFetchedArticlesByWindow(params: {
+  startedAt: Date;
+  finishedAt: Date;
+  page: number;
+}) {
+  const { startedAt, finishedAt, page } = params;
+  const safePage = Math.max(1, page);
+
+  const where: Prisma.ArticleWhereInput = {
+    createdAt: {
+      gte: startedAt,
+      lte: finishedAt
+    }
+  };
+
+  const records = await fetchArticleRecords(where);
+  const sorted = records.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const paged = sorted.slice((safePage - 1) * INGESTION_PAGE_SIZE, safePage * INGESTION_PAGE_SIZE);
+
+  return {
+    items: paged.map(mapArticle),
+    total: sorted.length,
+    totalPages: Math.max(1, Math.ceil(sorted.length / INGESTION_PAGE_SIZE)),
+    page: safePage,
+    pageSize: INGESTION_PAGE_SIZE
   };
 }
