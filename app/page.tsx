@@ -8,7 +8,7 @@ import {
   getRolloutArticles
 } from "@/services/article.service";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function HomePage() {
   const [categories, mustReadArticles, popularArticles, rolloutArticles, latestArticles] = await Promise.all([
