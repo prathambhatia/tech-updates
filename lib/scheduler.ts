@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { env } from "@/lib/env";
-import type { DailySchedule } from "@/lib/scheduler.types";
+import type { DailySchedule } from "@/types/lib/scheduler.types";
 import { ingestAllSources } from "@/services/ingestion.service";
 import { refreshExternalPopularitySignals } from "@/services/popularity-signals.service";
 

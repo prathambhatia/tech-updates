@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 
-import type { FeedItem, ParsedRssItem } from "@/lib/rss.types";
+import type { FeedItem, ParsedRssItem } from "@/types/lib/rss.types";
 import { inferExplicitDateFromText } from "@/utils/date";
 
 const parser = new Parser<Record<string, never>, FeedItem>({

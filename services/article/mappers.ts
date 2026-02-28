@@ -9,7 +9,7 @@ import {
   resolvedBreakthroughScore,
   resolvedHotTopicScore
 } from "@/services/article/scoring";
-import type { ArticleRecord } from "@/services/article/types";
+import type { ArticleRecord } from "@/types/services/article.types";
 import type { ArticleCard } from "@/types/article";
 
 export function mapArticle(record: ArticleRecord): ArticleCard {

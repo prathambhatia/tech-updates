@@ -4,7 +4,7 @@ import type {
   ManualIngestionJobState,
   ManualIngestionStatus,
   StartManualIngestionResult
-} from "@/lib/ingestion-job.types";
+} from "@/types/lib/ingestion-job.types";
 
 declare global {
   // eslint-disable-next-line no-var

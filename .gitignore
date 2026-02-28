@@ -43,3 +43,6 @@ pnpm-debug.log*
 AGENTS.md
 agents/
 skills/
+!skills/
+!skills/blog-file-placement/
+!skills/blog-file-placement/**

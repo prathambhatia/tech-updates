@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { CategoryCardProps } from "@/components/category-card.types";
+import type { CategoryCardProps } from "@/types/components/category-card.types";
 
 export function CategoryCard({ category }: CategoryCardProps) {
   return (

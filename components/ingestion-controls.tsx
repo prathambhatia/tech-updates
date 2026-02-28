@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { IngestionStatus, IngestionSummary, IngestStartResponse, IngestStatusResponse } from "@/components/ingestion-controls.types";
+import type { IngestionStatus, IngestionSummary, IngestStartResponse, IngestStatusResponse } from "@/types/components/ingestion-controls.types";
 
 function toErrorMessage(input: unknown): string {
   if (input instanceof Error) {

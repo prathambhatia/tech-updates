@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { SearchFilters } from "@/components/search-filters";
 import { getCategoryCards, searchArticles } from "@/services/article.service";
-import type { SearchPageProps } from "@/app/search/page.types";
+import type { SearchPageProps } from "@/types/app/search-page.types";
 import type { SortDirection } from "@/types/article";
 
 export const dynamic = "force-dynamic";

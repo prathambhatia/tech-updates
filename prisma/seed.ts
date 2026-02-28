@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
-import type { CategorySeed, SourceSeed } from "@/prisma/seed.types";
+import type { CategorySeed, SourceSeed } from "@/types/prisma/seed.types";
 
 const prisma = new PrismaClient();
 
