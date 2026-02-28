@@ -5,40 +5,11 @@ import { ArticleListItem } from "@/components/article-list-item";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { CATEGORY_PAGE_SIZE } from "@/services/article/constants";
+import { getCategories, search } from "@/services/article.service";
 import type { CategoryPageProps } from "@/types/app/category-page.types";
-import type { ArticleCard, CategoryCard, SortDirection } from "@/types/article";
+import type { CategoryCard, SortDirection } from "@/types/article";
 
 export const revalidate = 86400;
-
-type CategoryApiResponse = {
-  category: CategoryCard | null;
-};
-
-type SearchApiResponse = {
-  articles: Array<Omit<ArticleCard, "publishedAt"> & { publishedAt: string }>;
-  total: number;
-};
-
-function toBaseUrl(): string {
-  const vercel = process.env["VERCEL_URL"]?.trim();
-  if (vercel) {
-    return `https://${vercel}`;
-  }
-
-  const explicit = process.env["NEXT_PUBLIC_SITE_URL"]?.trim();
-  if (explicit) {
-    return explicit.replace(/\/+$/, "");
-  }
-
-  return "http://localhost:3000";
-}
-
-function toArticleCard(article: Omit<ArticleCard, "publishedAt"> & { publishedAt: string }): ArticleCard {
-  return {
-    ...article,
-    publishedAt: new Date(article.publishedAt)
-  };
-}
 
 function toSort(value: string | undefined): SortDirection {
   if (value === "latest") {
@@ -58,20 +29,14 @@ function toPage(value: string | undefined): number {
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
-  const baseUrl = toBaseUrl();
-  const categoryResponse = await fetch(
-    `${baseUrl}/api/categories?${new URLSearchParams({ name: params.slug }).toString()}`,
-    {
-      next: { revalidate: 86400 }
+  const categoryResult = await getCategories({
+    name: params.slug,
+    cache: {
+      ttlSeconds: 86400,
+      swrSeconds: 3600
     }
-  );
-
-  if (!categoryResponse.ok) {
-    notFound();
-  }
-
-  const categoryPayload = (await categoryResponse.json()) as CategoryApiResponse;
-  const category = categoryPayload.category;
+  });
+  const category = Array.isArray(categoryResult) ? null : categoryResult;
 
   if (!category) {
     notFound();
@@ -80,24 +45,19 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const sort = toSort(searchParams.sort);
   const page = toPage(searchParams.page);
   const offset = (page - 1) * CATEGORY_PAGE_SIZE;
-  const searchQuery = new URLSearchParams({
-    q: "",
-    category: category.slug,
+  const articlesPayload = await search({
+    query: "",
+    categorySlug: category.slug,
     sort,
-    limit: String(CATEGORY_PAGE_SIZE),
-    offset: String(offset)
+    limit: CATEGORY_PAGE_SIZE,
+    offset,
+    cache: {
+      ttlSeconds: 86400,
+      swrSeconds: 3600
+    }
   });
-  const articlesResponse = await fetch(`${baseUrl}/api/search?${searchQuery.toString()}`, {
-    next: { revalidate: 86400 }
-  });
-
-  if (!articlesResponse.ok) {
-    throw new Error("Failed to load category articles");
-  }
-
-  const articlesPayload = (await articlesResponse.json()) as SearchApiResponse;
   const result = {
-    items: articlesPayload.articles.map(toArticleCard),
+    items: articlesPayload.articles,
     page,
     total: articlesPayload.total,
     totalPages: Math.max(1, Math.ceil(articlesPayload.total / CATEGORY_PAGE_SIZE))
