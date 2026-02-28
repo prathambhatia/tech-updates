@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Playfair_Display, Source_Sans_3 } from "next/font/google";
 
 import { IngestionControls } from "@/components/ingestion-controls";
+import { env } from "@/lib/env";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ensureIngestionScheduler } from "@/lib/scheduler";
 import "@/app/globals.css";
@@ -52,7 +53,7 @@ export default function RootLayout({
                 >
                   Search
                 </Link>
-                <IngestionControls />
+                {env.INGESTION_MANUAL_TRIGGER_ENABLED ? <IngestionControls /> : null}
                 <ThemeToggle />
               </div>
             </div>

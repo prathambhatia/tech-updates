@@ -7,6 +7,7 @@ out/
 
 # Environment files
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
@@ -15,6 +16,8 @@ out/
 
 # Runtime/scheduler state
 .scheduler/
+.vercel/
+backups/
 
 # Logs
 *.log
@@ -32,3 +35,11 @@ pnpm-debug.log*
 .vscode/
 *.swp
 *.swo
+.vercel
+.env*.local
+
+# Agent / skill local metadata
+.codex/
+AGENTS.md
+agents/
+skills/

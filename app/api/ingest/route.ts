@@ -1,8 +1,55 @@
 import { NextResponse } from "next/server";
 
+import { env } from "@/lib/env";
 import { getManualIngestionStatus, startManualIngestion } from "@/lib/ingestion-job";
 
-export async function POST() {
+function hasValidSecret(request: Request): boolean {
+  if (!env.INGESTION_API_SECRET) {
+    return false;
+  }
+
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return false;
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim();
+  return token.length > 0 && token === env.INGESTION_API_SECRET;
+}
+
+function rejectUnauthorized(): NextResponse {
+  return NextResponse.json(
+    {
+      ok: false,
+      message: "Unauthorized"
+    },
+    {
+      status: 401
+    }
+  );
+}
+
+function rejectManualDisabled(): NextResponse {
+  return NextResponse.json(
+    {
+      ok: false,
+      message: "Manual ingestion is disabled."
+    },
+    {
+      status: 403
+    }
+  );
+}
+
+export async function POST(request: Request) {
+  if (!env.INGESTION_MANUAL_TRIGGER_ENABLED) {
+    return rejectManualDisabled();
+  }
+
+  if (!hasValidSecret(request)) {
+    return rejectUnauthorized();
+  }
+
   try {
     const startResult = startManualIngestion();
 
@@ -26,7 +73,15 @@ export async function POST() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!env.INGESTION_MANUAL_TRIGGER_ENABLED) {
+    return rejectManualDisabled();
+  }
+
+  if (!hasValidSecret(request)) {
+    return rejectUnauthorized();
+  }
+
   try {
     const status = getManualIngestionStatus();
 
