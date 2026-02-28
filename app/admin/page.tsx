@@ -4,8 +4,8 @@ import {
   getAdminSessionFromCookies,
   isAdminConfigured,
   isAdminSessionValid
-} from "@/lib/admin-auth";
-import { getAdminIngestionReport } from "@/services/admin-report.service";
+} from "@/admin/auth";
+import { getAdminIngestionReport } from "@/admin/services/report.service";
 
 export const dynamic = "force-dynamic";
 
