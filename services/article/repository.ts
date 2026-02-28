@@ -5,18 +5,22 @@ import {
   readCategoryDelegate,
   withReadCache
 } from "@/services/article/cache";
+import { DISPLAY_CATEGORY_SLUGS } from "@/services/article/category-classifier";
 import type { ArticleRecord, CategoryWithSourcesRecord } from "@/types/services/article.types";
 
 export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesRecord[]> {
   return readCategoryDelegate.findMany({
+    where: {
+      slug: {
+        in: [...DISPLAY_CATEGORY_SLUGS]
+      }
+    },
     orderBy: { name: "asc" },
     ...withReadCache(["categories"]),
     include: {
-      sources: {
-        include: {
-          _count: {
-            select: { articles: true }
-          }
+      _count: {
+        select: {
+          articles: true
         }
       }
     }
@@ -24,6 +28,10 @@ export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesReco
 }
 
 export async function getCategoryBySlugRecord(slug: string) {
+  if (!DISPLAY_CATEGORY_SLUGS.includes(slug as (typeof DISPLAY_CATEGORY_SLUGS)[number])) {
+    return null;
+  }
+
   return readCategoryDelegate.findUnique({
     where: { slug },
     ...withReadCache([`category:${slug}`])
@@ -46,6 +54,7 @@ export async function fetchArticleRecords(params?: {
     take,
     ...withReadCache(cacheTags ?? ["articles"]),
     include: {
+      category: true,
       source: {
         include: {
           category: true

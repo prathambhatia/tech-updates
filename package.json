@@ -11,6 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "categories:backfill": "tsx scripts/backfill-article-categories.ts",
     "popularity:backfill": "tsx scripts/backfill-popularity-v2.ts",
     "popularity:test": "tsx scripts/test-popularity-v2.ts"
   },

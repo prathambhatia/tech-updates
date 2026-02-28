@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { parseFeed } from "@/lib/rss";
 import { extractArticleText, scrapeFeedFallback } from "@/lib/scrape";
+import { resolveArticleCategorySlug } from "@/services/article/category-classifier";
 import type { IngestAllResult, IngestionArticleInput, SourceIngestionResult } from "@/types/ingestion";
 import { inferExplicitDateFromText } from "@/utils/date";
 import {
@@ -163,9 +164,11 @@ async function ingestSingleSource(source: {
   name: string;
   url: string;
   rssUrl: string;
-}) {
+  categoryId: string;
+}, categoryIdBySlug: Map<string, string>) {
   const errors: string[] = [];
   const parsedItems: IngestionArticleInput[] = [];
+  const categoryAssignmentCounts: Record<string, number> = {};
 
   try {
     const rssItems = await parseFeed(source.rssUrl);
@@ -221,6 +224,19 @@ async function ingestSingleSource(source: {
   const limitedItems = [...dedupedByUrl.values()].slice(0, MAX_ITEMS_PROCESSED_PER_SOURCE);
 
   for (const item of limitedItems) {
+    const resolvedCategorySlug = resolveArticleCategorySlug({
+      sourceName: source.name,
+      sourceUrl: source.url,
+      sourceRssUrl: source.rssUrl,
+      title: item.title,
+      summary: item.summary,
+      contentPreview: item.contentPreview,
+      tags: item.tags
+    });
+    categoryAssignmentCounts[resolvedCategorySlug] = (categoryAssignmentCounts[resolvedCategorySlug] ?? 0) + 1;
+
+    const resolvedCategoryId = categoryIdBySlug.get(resolvedCategorySlug) ?? source.categoryId;
+
     if (isMediumSource(source.url) && !isAllowedMediumArticle({ title: item.title, text: item.summary, tags: item.tags })) {
       skippedCount += 1;
       continue;
@@ -230,15 +246,17 @@ async function ingestSingleSource(source: {
       where: {
         url: item.url
       },
-      select: { id: true, readingTime: true }
+      select: { id: true, readingTime: true, categoryId: true }
     });
 
     if (existing) {
-      if (existing.readingTime <= 1 && item.readingTime > existing.readingTime) {
+      const nextReadingTime = existing.readingTime <= 1 && item.readingTime > existing.readingTime ? item.readingTime : existing.readingTime;
+      if (nextReadingTime !== existing.readingTime || existing.categoryId !== resolvedCategoryId) {
         await prisma.article.update({
           where: { id: existing.id },
           data: {
-            readingTime: item.readingTime
+            readingTime: nextReadingTime,
+            categoryId: resolvedCategoryId
           }
         });
       }
@@ -261,7 +279,8 @@ async function ingestSingleSource(source: {
             contentPreview: item.contentPreview,
             publishedAt: item.publishedAt,
             readingTime: item.readingTime,
-            sourceId: source.id
+            sourceId: source.id,
+            categoryId: resolvedCategoryId
           }
         });
 
@@ -285,7 +304,8 @@ async function ingestSingleSource(source: {
     fetchedCount: dedupedByUrl.size,
     createdCount,
     skippedCount,
-    errors
+    errors,
+    categoryAssignmentCounts
   } satisfies SourceIngestionResult;
 }
 
@@ -358,7 +378,9 @@ async function ingestSourcesWithConcurrency(
     name: string;
     url: string;
     rssUrl: string;
+    categoryId: string;
   }>,
+  categoryIdBySlug: Map<string, string>,
   concurrency: number
 ): Promise<SourceIngestionResult[]> {
   const results: SourceIngestionResult[] = [];
@@ -369,6 +391,7 @@ async function ingestSourcesWithConcurrency(
     name: string;
     url: string;
     rssUrl: string;
+    categoryId: string;
   }): Promise<SourceIngestionResult> {
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -380,12 +403,13 @@ async function ingestSourcesWithConcurrency(
           fetchedCount: 0,
           createdCount: 0,
           skippedCount: 0,
-          errors: [`Source ingestion timed out after ${SOURCE_INGESTION_TIMEOUT_MS / 1000}s`]
+          errors: [`Source ingestion timed out after ${SOURCE_INGESTION_TIMEOUT_MS / 1000}s`],
+          categoryAssignmentCounts: {}
         });
       }, SOURCE_INGESTION_TIMEOUT_MS);
     });
 
-    const ingestionPromise = ingestSingleSource(source);
+    const ingestionPromise = ingestSingleSource(source, categoryIdBySlug);
     const result = await Promise.race([ingestionPromise, timeoutPromise]);
 
     if (timeoutHandle) {
@@ -418,20 +442,37 @@ async function ingestSourcesWithConcurrency(
 export async function ingestAllSources(): Promise<IngestAllResult> {
   const startedAt = new Date();
 
+  const categories = await prisma.category.findMany({
+    select: {
+      id: true,
+      slug: true
+    }
+  });
+  const categoryIdBySlug = new Map(categories.map((category) => [category.slug, category.id]));
+
   const sources = await prisma.source.findMany({
     orderBy: [{ category: { name: "asc" } }, { name: "asc" }],
     select: {
       id: true,
       name: true,
       url: true,
-      rssUrl: true
+      rssUrl: true,
+      categoryId: true
     }
   });
 
-  const results = await ingestSourcesWithConcurrency(sources, SOURCE_INGESTION_CONCURRENCY);
+  const results = await ingestSourcesWithConcurrency(sources, categoryIdBySlug, SOURCE_INGESTION_CONCURRENCY);
+  const categoryAssignmentCounts = results.reduce<Record<string, number>>((acc, result) => {
+    for (const [slug, count] of Object.entries(result.categoryAssignmentCounts)) {
+      acc[slug] = (acc[slug] ?? 0) + count;
+    }
+    return acc;
+  }, {});
 
   const repairedDateCount = await repairIncorrectPublishedDates();
   const finishedAt = new Date();
+
+  console.log(`[ingestion] categoryAssignmentCounts=${JSON.stringify(categoryAssignmentCounts)}`);
 
   return {
     startedAt: startedAt.toISOString(),
@@ -441,6 +482,7 @@ export async function ingestAllSources(): Promise<IngestAllResult> {
     createdCount: results.reduce((total, result) => total + result.createdCount, 0),
     skippedCount: results.reduce((total, result) => total + result.skippedCount, 0),
     repairedDateCount,
+    categoryAssignmentCounts,
     results
   };
 }

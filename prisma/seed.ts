@@ -6,9 +6,9 @@ import type { CategorySeed, SourceSeed } from "@/types/prisma/seed.types";
 const prisma = new PrismaClient();
 
 const categories: CategorySeed[] = [
-  { name: "Frontier AI & Agents", slug: "frontier-ai-agents" },
-  { name: "AI Tooling & Infra", slug: "ai-tooling-infra" },
+  { name: "ML, AI & Agents", slug: "ml-ai-agents" },
   { name: "Big Tech Architecture", slug: "big-tech-architecture" },
+  { name: "Big Tech Outages", slug: "big-tech-outages" },
   { name: "Popular Medium Engineering", slug: "popular-medium-engineering" }
 ];
 
@@ -17,49 +17,49 @@ const sources: SourceSeed[] = [
     name: "OpenAI",
     url: "https://openai.com/blog",
     rssUrl: "https://openai.com/blog/rss.xml",
-    categorySlug: "frontier-ai-agents"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Anthropic",
     url: "https://www.anthropic.com/research",
     rssUrl: "https://www.anthropic.com/research/rss.xml",
-    categorySlug: "frontier-ai-agents"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Cognition",
     url: "https://cognition.ai/blog",
     rssUrl: "https://cognition.ai/blog/rss.xml",
-    categorySlug: "frontier-ai-agents"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "HuggingFace",
     url: "https://huggingface.co/blog",
     rssUrl: "https://huggingface.co/blog/feed.xml",
-    categorySlug: "frontier-ai-agents"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Google DeepMind Blog",
     url: "https://deepmind.google/discover/blog",
     rssUrl: "https://deepmind.google/discover/blog/rss.xml",
-    categorySlug: "frontier-ai-agents"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Cloudflare",
     url: "https://blog.cloudflare.com/",
     rssUrl: "https://blog.cloudflare.com/rss/",
-    categorySlug: "ai-tooling-infra"
+    categorySlug: "big-tech-architecture"
   },
   {
     name: "LangChain",
     url: "https://blog.langchain.dev/",
     rssUrl: "https://blog.langchain.dev/rss/",
-    categorySlug: "ai-tooling-infra"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Vercel AI",
     url: "https://vercel.com/blog/tag/ai",
     rssUrl: "https://vercel.com/atom.xml?path=/blog/tag/ai",
-    categorySlug: "ai-tooling-infra"
+    categorySlug: "ml-ai-agents"
   },
   {
     name: "Netflix Tech Blog",
@@ -178,6 +178,31 @@ async function main() {
         categoryId
       }
     });
+  }
+
+  for (const legacySlug of ["frontier-ai-agents", "ai-tooling-infra"]) {
+    const legacy = await prisma.category.findUnique({
+      where: { slug: legacySlug },
+      select: { id: true }
+    });
+
+    if (!legacy) {
+      continue;
+    }
+
+    const sourceCount = await prisma.source.count({
+      where: {
+        categoryId: legacy.id
+      }
+    });
+
+    if (sourceCount === 0) {
+      await prisma.category.delete({
+        where: {
+          id: legacy.id
+        }
+      });
+    }
   }
 }
 

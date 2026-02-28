@@ -14,6 +14,7 @@ model Category {
   createdAt DateTime @default(now())
 
   sources Source[]
+  articles Article[]
 }
 
 model Source {
@@ -50,13 +51,16 @@ model Article {
   popularityConfidence        Float    @default(0)
   popularityComputedAt        DateTime?
   sourceId       String   @db.Uuid
+  categoryId     String?  @db.Uuid
   createdAt      DateTime @default(now())
 
   source Source     @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags   ArticleTag[]
 
   @@index([publishedAt])
   @@index([sourceId, publishedAt])
+  @@index([categoryId])
   @@index([externalPopularityScore])
   @@index([popularityScoreV2])
   @@index([viralVelocityScore])

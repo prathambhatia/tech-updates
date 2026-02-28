@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 
 export type ArticleRecord = Prisma.ArticleGetPayload<{
   include: {
+    category: true;
     source: {
       include: {
         category: true;
@@ -17,13 +18,9 @@ export type ArticleRecord = Prisma.ArticleGetPayload<{
 
 export type CategoryWithSourcesRecord = Prisma.CategoryGetPayload<{
   include: {
-    sources: {
-      include: {
-        _count: {
-          select: {
-            articles: true;
-          };
-        };
+    _count: {
+      select: {
+        articles: true;
       };
     };
   };

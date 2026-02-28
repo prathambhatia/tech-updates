@@ -36,10 +36,7 @@ export async function getCategoryCards(): Promise<CategoryCard[]> {
     id: category.id,
     name: category.name,
     slug: category.slug,
-    articleCount: category.sources.reduce(
-      (total: number, source: CategoryWithSourcesRecord["sources"][number]) => total + source._count.articles,
-      0
-    )
+    articleCount: category._count.articles
   }));
 }
 
@@ -56,10 +53,8 @@ export async function getCategoryArticles(params: {
   const safePage = Math.max(1, page);
 
   const where: Prisma.ArticleWhereInput = {
-    source: {
-      category: {
-        slug: categorySlug
-      }
+    category: {
+      slug: categorySlug
     }
   };
 
@@ -122,10 +117,8 @@ export async function searchArticles(params: {
       : {}),
     ...(categorySlug && categorySlug !== "all"
       ? {
-          source: {
-            category: {
-              slug: categorySlug
-            }
+          category: {
+            slug: categorySlug
           }
         }
       : {})

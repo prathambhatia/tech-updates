@@ -16,6 +16,7 @@ export type SourceIngestionResult = {
   createdCount: number;
   skippedCount: number;
   errors: string[];
+  categoryAssignmentCounts: Record<string, number>;
 };
 
 export type IngestAllResult = {
@@ -26,5 +27,6 @@ export type IngestAllResult = {
   createdCount: number;
   skippedCount: number;
   repairedDateCount: number;
+  categoryAssignmentCounts: Record<string, number>;
   results: SourceIngestionResult[];
 };
