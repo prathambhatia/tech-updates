@@ -42,8 +42,19 @@ export default function RootLayout({
           <header className="sticky top-0 z-30 border-b border-ink-200/70 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-[#11181d]/85">
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
               <div>
-                <Link href="/" className="font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-slate-100">
-                  Tech Updates
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-3 font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-slate-100"
+                >
+                  <Image
+                    src="/assets/icons/logo-mark.svg"
+                    alt="Tech Updates logo"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 shrink-0 rounded-lg"
+                    priority
+                  />
+                  <span>Tech Updates</span>
                 </Link>
                 <p className="text-sm text-ink-600 dark:text-slate-400"></p>
               </div>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Tech Updates logo">
+  <defs>
+    <linearGradient id="logo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#1d4ed8" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="url(#logo-bg)" />
+  <path d="M33 42h62v12H70v36H58V54H33z" fill="#ffffff" />
+  <path d="M31 76v-34h12v34c0 9 6 14 17 14s17-5 17-14V42h12v34c0 16-12 26-29 26S31 92 31 76z" fill="#e6f6ff" />
+</svg>
