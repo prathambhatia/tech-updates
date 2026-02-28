@@ -16,7 +16,7 @@ export function CategoryCard({ category }: CategoryCardProps) {
       <h3 className="mt-2 text-xl font-semibold leading-tight text-ink-900 group-hover:text-accent-600 dark:text-slate-100 dark:group-hover:text-teal-200">
         {category.name}
       </h3>
-      <p className="mt-3 text-sm text-ink-600 dark:text-slate-300">{category.articleCount} articles indexed</p>
+      <p className="mt-3 text-sm text-ink-600 dark:text-slate-300">{category.articleCount} articles</p>
     </Link>
   );
 }
