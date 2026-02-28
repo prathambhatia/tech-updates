@@ -3,7 +3,7 @@ import type {
   AdminDailyFetchBucket,
   AdminIngestionReport,
   AdminRecentFetchedArticle
-} from "@/services/admin-report.types";
+} from "@/admin/types/report.types";
 
 const DEFAULT_REPORT_DAYS = 14;
 const DEFAULT_RECENT_FETCHED_LIMIT = 100;

@@ -6,7 +6,7 @@ import {
   getAdminSessionMaxAgeSeconds,
   isAdminConfigured,
   isValidAdminLogin
-} from "@/lib/admin-auth";
+} from "@/admin/auth";
 
 export async function POST(request: Request) {
   const loginUrl = new URL("/admin", request.url);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getAdminCookieName } from "@/lib/admin-auth";
+import { getAdminCookieName } from "@/admin/auth";
 
 export async function POST(request: Request) {
   const response = NextResponse.redirect(new URL("/admin", request.url));
