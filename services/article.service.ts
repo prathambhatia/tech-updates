@@ -1,142 +1,36 @@
 import type { Prisma } from "@prisma/client";
 
-import { env } from "@/lib/env";
 import {
-  readArticleDelegate,
-  readCategoryDelegate,
-  withReadCache
-} from "@/services/article/cache";
+  CATEGORY_PAGE_SIZE,
+  INGESTION_PAGE_SIZE,
+  SEARCH_PAGE_SIZE
+} from "@/services/article/constants";
 import {
-  asFiniteNumber,
-  computeJuniorRelevanceScore,
-  computeLearningTracks,
-  computePopularityScore,
-  effectiveReadingTime,
-  importanceLevel,
-  isLowSignalArticle,
-  resolvedBreakthroughScore,
-  resolvedHotTopicScore
-} from "@/services/article/scoring";
-import type { ArticleRecord, CategoryWithSourcesRecord } from "@/services/article/types";
+  getJuniorMustReadArticles,
+  getLatestArticles,
+  getPopularArticles,
+  getRolloutArticles
+} from "@/services/article/home.service";
+import { mapArticle } from "@/services/article/mappers";
+import { dbOrderBy } from "@/services/article/ordering";
+import type { CategoryWithSourcesRecord } from "@/services/article/types";
+import {
+  countArticles,
+  fetchArticleRecords,
+  getCategoryBySlugRecord,
+  getCategoryCardsRecords
+} from "@/services/article/repository";
 import type { ArticleCard, ArticleDetail, CategoryCard, SortDirection } from "@/types/article";
 
-const CATEGORY_PAGE_SIZE = 12;
-const SEARCH_PAGE_SIZE = 12;
-const INGESTION_PAGE_SIZE = 12;
-const CANDIDATE_MULTIPLIER = 4;
-
-function sortRecords(records: ArticleRecord[], sort: SortDirection): ArticleRecord[] {
-  const filtered = records.filter((record) => !isLowSignalArticle(record));
-
-  if (sort === "latest") {
-    return filtered.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-  }
-
-  if (sort === "oldest") {
-    return filtered.sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime());
-  }
-
-  if (env.POPULARITY_V2_ENABLED) {
-    return filtered.sort((a, b) => {
-      const v2Diff = asFiniteNumber(b.popularityScoreV2, 0) - asFiniteNumber(a.popularityScoreV2, 0);
-      if (v2Diff !== 0) {
-        return v2Diff;
-      }
-
-      return b.publishedAt.getTime() - a.publishedAt.getTime();
-    });
-  }
-
-  return filtered.sort((a, b) => {
-    const compositeA = computeJuniorRelevanceScore(a) * 0.62 + computePopularityScore(a) * 0.38;
-    const compositeB = computeJuniorRelevanceScore(b) * 0.62 + computePopularityScore(b) * 0.38;
-
-    const compositeDiff = compositeB - compositeA;
-    if (compositeDiff !== 0) {
-      return compositeDiff;
-    }
-
-    const viralDiff = b.viralVelocityScore - a.viralVelocityScore;
-    if (viralDiff !== 0) {
-      return viralDiff;
-    }
-
-    return b.publishedAt.getTime() - a.publishedAt.getTime();
-  });
-}
-
-function dbOrderBy(sort: SortDirection): Prisma.ArticleOrderByWithRelationInput[] {
-  if (sort === "latest") {
-    return [{ publishedAt: "desc" }];
-  }
-
-  if (sort === "oldest") {
-    return [{ publishedAt: "asc" }];
-  }
-
-  if (env.POPULARITY_V2_ENABLED) {
-    return [{ popularityScoreV2: "desc" }, { publishedAt: "desc" }];
-  }
-
-  return [
-    { externalPopularityScore: "desc" },
-    { viralVelocityScore: "desc" },
-    { hotTopicScore: "desc" },
-    { breakthroughScore: "desc" },
-    { publishedAt: "desc" }
-  ];
-}
-
-function mapArticle(record: ArticleRecord): ArticleCard {
-  const tracks = computeLearningTracks(record).tracks;
-  const juniorScore = asFiniteNumber(computeJuniorRelevanceScore(record), 0);
-  const breakthroughScore = resolvedBreakthroughScore(record);
-  const hotTopicScore = resolvedHotTopicScore(record);
-  const readingTime = effectiveReadingTime(record);
-  const popularityScore = env.POPULARITY_V2_ENABLED
-    ? asFiniteNumber(record.popularityScoreV2, 0)
-    : asFiniteNumber(computePopularityScore(record), 0);
-
-  return {
-    id: record.id,
-    title: record.title,
-    slug: record.slug,
-    summary: record.summary,
-    contentPreview: record.contentPreview,
-    author: record.author,
-    publishedAt: record.publishedAt,
-    readingTime,
-    sourceName: record.source.name,
-    categoryName: record.source.category.name,
-    categorySlug: record.source.category.slug,
-    tags: record.tags.map((binding) => binding.tag.name),
-    popularityScore,
-    popularityScoreV2: asFiniteNumber(record.popularityScoreV2, 0),
-    popularityConfidence: asFiniteNumber(record.popularityConfidence, 0),
-    juniorRelevanceScore: juniorScore,
-    externalPopularityScore: asFiniteNumber(record.externalPopularityScore, 0),
-    viralVelocityScore: asFiniteNumber(record.viralVelocityScore, 0),
-    breakthroughScore,
-    hotTopicScore,
-    learningTracks: tracks,
-    importanceLevel: importanceLevel(juniorScore)
-  };
-}
+export {
+  getJuniorMustReadArticles,
+  getLatestArticles,
+  getPopularArticles,
+  getRolloutArticles
+} from "@/services/article/home.service";
 
 export async function getCategoryCards(): Promise<CategoryCard[]> {
-  const categories: CategoryWithSourcesRecord[] = await readCategoryDelegate.findMany({
-    orderBy: { name: "asc" },
-    ...withReadCache(["categories"]),
-    include: {
-      sources: {
-        include: {
-          _count: {
-            select: { articles: true }
-          }
-        }
-      }
-    }
-  });
+  const categories = await getCategoryCardsRecords();
 
   return categories.map((category: CategoryWithSourcesRecord) => ({
     id: category.id,
@@ -149,107 +43,8 @@ export async function getCategoryCards(): Promise<CategoryCard[]> {
   }));
 }
 
-async function fetchArticleRecords(params?: {
-  where?: Prisma.ArticleWhereInput;
-  orderBy?: Prisma.ArticleOrderByWithRelationInput[];
-  skip?: number;
-  take?: number;
-  cacheTags?: string[];
-}): Promise<ArticleRecord[]> {
-  const { where, orderBy, skip, take, cacheTags } = params ?? {};
-
-  return readArticleDelegate.findMany({
-    where,
-    orderBy,
-    skip,
-    take,
-    ...withReadCache(cacheTags ?? ["articles"]),
-    include: {
-      source: {
-        include: {
-          category: true
-        }
-      },
-      tags: {
-        include: {
-          tag: true
-        }
-      }
-    }
-  });
-}
-
-export async function getLatestArticles(limit = 10): Promise<ArticleCard[]> {
-  const records = await fetchArticleRecords({
-    where: {
-      publishedAt: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
-      }
-    },
-    orderBy: dbOrderBy("latest"),
-    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit),
-    cacheTags: ["home:latest"]
-  });
-
-  return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
-}
-
-export async function getPopularArticles(limit = 10): Promise<ArticleCard[]> {
-  const records = await fetchArticleRecords({
-    where: {
-      publishedAt: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
-      }
-    },
-    orderBy: dbOrderBy("popular"),
-    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit),
-    cacheTags: ["home:popular"]
-  });
-
-  return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
-}
-
-export async function getJuniorMustReadArticles(limit = 8): Promise<ArticleCard[]> {
-  const records = await fetchArticleRecords({
-    where: {
-      publishedAt: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 240)
-      }
-    },
-    orderBy: dbOrderBy("popular"),
-    take: Math.max(limit * 50, 200),
-    cacheTags: ["home:must-read"]
-  });
-
-  return sortRecords(records, "popular")
-    .filter((record) => computeJuniorRelevanceScore(record) >= 75)
-    .slice(0, limit)
-    .map(mapArticle);
-}
-
-export async function getRolloutArticles(limit = 8): Promise<ArticleCard[]> {
-  const records = await fetchArticleRecords({
-    where: {
-      publishedAt: {
-        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120)
-      }
-    },
-    orderBy: dbOrderBy("latest"),
-    take: Math.max(limit * 50, 200),
-    cacheTags: ["home:rollouts"]
-  });
-
-  return sortRecords(records, "latest")
-    .filter((record) => computeLearningTracks(record).tracks.includes("New Tech Rollout"))
-    .slice(0, limit)
-    .map(mapArticle);
-}
-
 export async function getCategoryBySlug(slug: string) {
-  return readCategoryDelegate.findUnique({
-    where: { slug },
-    ...withReadCache([`category:${slug}`])
-  });
+  return getCategoryBySlugRecord(slug);
 }
 
 export async function getCategoryArticles(params: {
@@ -269,10 +64,7 @@ export async function getCategoryArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    readArticleDelegate.count({
-      where,
-      ...withReadCache([`category:${categorySlug}:count`])
-    }),
+    countArticles(where, [`category:${categorySlug}:count`]),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
@@ -340,10 +132,7 @@ export async function searchArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    readArticleDelegate.count({
-      where,
-      ...withReadCache([`search:${normalizedQuery || "all"}`, `search:category:${categorySlug ?? "all"}:count`])
-    }),
+    countArticles(where, [`search:${normalizedQuery || "all"}`, `search:category:${categorySlug ?? "all"}:count`]),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
@@ -383,10 +172,7 @@ export async function getFetchedArticlesByWindow(params: {
   };
 
   const [total, records] = await Promise.all([
-    readArticleDelegate.count({
-      where,
-      ...withReadCache(["ingestion:window:count"])
-    }),
+    countArticles(where, ["ingestion:window:count"]),
     fetchArticleRecords({
       where,
       orderBy: [{ createdAt: "desc" }],
