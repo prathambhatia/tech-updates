@@ -43,18 +43,18 @@ export default async function HomePage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-display text-3xl font-semibold text-ink-900 dark:text-ink-100">Junior Must-Read</h2>
+        <h2 className="font-display text-3xl font-semibold text-ink-900 dark:text-ink-100">Popular Right Now</h2>
         <div className="grid gap-4">
-          {mustReadArticles.map((article) => (
+          {popularArticles.map((article) => (
             <ArticleListItem key={article.id} article={article} />
           ))}
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-display text-3xl font-semibold text-ink-900 dark:text-ink-100">Popular Right Now</h2>
+        <h2 className="font-display text-3xl font-semibold text-ink-900 dark:text-ink-100">Junior Must-Read</h2>
         <div className="grid gap-4">
-          {popularArticles.map((article) => (
+          {mustReadArticles.map((article) => (
             <ArticleListItem key={article.id} article={article} />
           ))}
         </div>

@@ -51,14 +51,16 @@ const OUTAGE_NOISE_KEYWORDS = [
   "safety eval"
 ];
 
-const AI_KEYWORDS = [
+const AI_STRONG_KEYWORDS = [
   "llm",
-  "ml",
   "machine learning",
-  "ai",
+  "ai agent",
+  "agentic",
   "agent",
   "agents",
-  "model",
+  "model release",
+  "model training",
+  "model inference",
   "rag",
   "transformer",
   "inference",
@@ -66,7 +68,16 @@ const AI_KEYWORDS = [
   "fine-tuning",
   "finetuning",
   "embedding",
-  "reasoning"
+  "reasoning",
+  "multimodal"
+];
+
+const AI_SUPPORTING_KEYWORDS = [
+  "ml",
+  "neural",
+  "token",
+  "context window",
+  "benchmark"
 ];
 
 const ARCHITECTURE_KEYWORDS = [
@@ -83,7 +94,15 @@ const ARCHITECTURE_KEYWORDS = [
   "event driven",
   "event-driven",
   "queue",
+  "sharding",
+  "partitioning",
   "partition",
+  "capacity planning",
+  "multi-region",
+  "event sourcing",
+  "idempotency",
+  "saga",
+  "cache invalidation",
   "fault tolerance"
 ];
 
@@ -95,6 +114,23 @@ const AI_SOURCE_NAMES = new Set([
   "Google DeepMind Blog",
   "LangChain",
   "Vercel AI"
+]);
+
+const ARCHITECTURE_SOURCE_NAMES = new Set([
+  "Cloudflare",
+  "Netflix Tech Blog",
+  "Uber Engineering",
+  "Stripe Engineering",
+  "Dropbox Tech",
+  "Meta Engineering",
+  "Google Cloud Blog",
+  "AWS Architecture",
+  "Slack Engineering",
+  "Lyft Engineering",
+  "GitHub Engineering",
+  "Datadog Engineering",
+  "LinkedIn Engineering",
+  "Spotify Engineering"
 ]);
 
 function containsAnyKeyword(content: string, keywords: string[]): boolean {
@@ -158,11 +194,24 @@ export function resolveArticleCategorySlug(input: {
     return CATEGORY_SLUGS.OUTAGES;
   }
 
-  if (containsAnyKeyword(normalized, AI_KEYWORDS)) {
+  const architectureScore = countKeywordMatches(normalized, ARCHITECTURE_KEYWORDS);
+  const aiStrongScore = countKeywordMatches(normalized, AI_STRONG_KEYWORDS);
+  const aiSupportingScore = countKeywordMatches(normalized, AI_SUPPORTING_KEYWORDS);
+  const aiScore = aiStrongScore * 2 + aiSupportingScore;
+
+  if (architectureScore >= 2 && architectureScore >= aiScore) {
+    return CATEGORY_SLUGS.ARCHITECTURE;
+  }
+
+  if (aiStrongScore >= 1 || aiScore >= 3) {
     return CATEGORY_SLUGS.AI_AGENTS;
   }
 
-  if (containsAnyKeyword(normalized, ARCHITECTURE_KEYWORDS)) {
+  if (architectureScore >= 1) {
+    return CATEGORY_SLUGS.ARCHITECTURE;
+  }
+
+  if (ARCHITECTURE_SOURCE_NAMES.has(input.sourceName)) {
     return CATEGORY_SLUGS.ARCHITECTURE;
   }
 

@@ -13,5 +13,11 @@ export const SOURCE_POPULARITY_WEIGHTS: Record<string, number> = {
   "AWS Architecture": 15,
   "Google Cloud Blog": 15,
   "Stripe Engineering": 15,
-  "Dropbox Tech": 14
+  "Dropbox Tech": 14,
+  "GitHub Engineering": 16,
+  "Datadog Engineering": 15,
+  "Slack Engineering": 15,
+  "LinkedIn Engineering": 15,
+  "Lyft Engineering": 14,
+  "Spotify Engineering": 14
 };
