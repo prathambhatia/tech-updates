@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blog File Placement"
+  short_description: "Enforce consistent file and type locations for the blog repo"
+  default_prompt: "Organize new and modified files into the standard blog structure with centralized types by domain."

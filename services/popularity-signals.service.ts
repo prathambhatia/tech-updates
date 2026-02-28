@@ -5,7 +5,7 @@ import type {
   PopularityV2Input,
   RefreshResult,
   SignalResult
-} from "@/services/popularity-signals.types";
+} from "@/types/services/popularity-signals.types";
 
 const STOPWORDS = new Set([
   "the",

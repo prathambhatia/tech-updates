@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SortDirection } from "@/types/article";
-import type { DropdownOption, DropdownProps, SearchFiltersProps } from "@/components/search-filters.types";
+import type { DropdownOption, DropdownProps, SearchFiltersProps } from "@/types/components/search-filters.types";
 
 const SORT_OPTIONS: DropdownOption[] = [
   { value: "popular", label: "Most popular" },

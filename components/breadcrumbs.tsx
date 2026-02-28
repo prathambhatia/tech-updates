@@ -1,4 +1,4 @@
-import type { BreadcrumbsProps } from "@/components/breadcrumbs.types";
+import type { BreadcrumbsProps } from "@/types/components/breadcrumbs.types";
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (

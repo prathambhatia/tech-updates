@@ -2,7 +2,7 @@ import { ArticleListItem } from "@/components/article-list-item";
 import { PaginationLinks } from "@/components/pagination-links";
 import { getFetchedArticlesByWindow } from "@/services/article.service";
 import { formatDate } from "@/utils/date";
-import type { FetchedIngestionPageProps } from "@/app/ingestion/fetched/page.types";
+import type { FetchedIngestionPageProps } from "@/types/app/ingestion-fetched-page.types";
 
 function parsePage(input: string | undefined): number {
   const parsed = Number.parseInt(input ?? "1", 10);

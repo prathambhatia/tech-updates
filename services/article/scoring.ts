@@ -1,8 +1,8 @@
 import { countWords, estimateReadingTime } from "@/utils/text";
 
 import { SOURCE_POPULARITY_WEIGHTS } from "@/services/article/sources";
-import type { KeywordRule } from "@/services/article/scoring.types";
-import type { ArticleRecord } from "@/services/article/types";
+import type { KeywordRule } from "@/types/services/article-scoring.types";
+import type { ArticleRecord } from "@/types/services/article.types";
 
 const TRACK_RULES: KeywordRule[] = [
   {

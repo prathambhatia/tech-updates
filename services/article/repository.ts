@@ -5,7 +5,7 @@ import {
   readCategoryDelegate,
   withReadCache
 } from "@/services/article/cache";
-import type { ArticleRecord, CategoryWithSourcesRecord } from "@/services/article/types";
+import type { ArticleRecord, CategoryWithSourcesRecord } from "@/types/services/article.types";
 
 export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesRecord[]> {
   return readCategoryDelegate.findMany({

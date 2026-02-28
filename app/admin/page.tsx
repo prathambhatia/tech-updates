@@ -1,4 +1,4 @@
-import type { AdminPageProps } from "@/app/admin/page.types";
+import type { AdminPageProps } from "@/types/app/admin-page.types";
 import {
   getAdminCookieName,
   getAdminSessionFromCookies,

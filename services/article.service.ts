@@ -13,7 +13,7 @@ import {
 } from "@/services/article/home.service";
 import { mapArticle } from "@/services/article/mappers";
 import { dbOrderBy } from "@/services/article/ordering";
-import type { CategoryWithSourcesRecord } from "@/services/article/types";
+import type { CategoryWithSourcesRecord } from "@/types/services/article.types";
 import {
   countArticles,
   fetchArticleRecords,
