@@ -7,6 +7,7 @@ import { countWords, estimateReadingTime } from "@/utils/text";
 const CATEGORY_PAGE_SIZE = 12;
 const SEARCH_PAGE_SIZE = 12;
 const INGESTION_PAGE_SIZE = 12;
+const CANDIDATE_MULTIPLIER = 4;
 
 const SOURCE_POPULARITY_WEIGHTS: Record<string, number> = {
   OpenAI: 22,
@@ -337,6 +338,24 @@ function sortRecords(records: ArticleRecord[], sort: SortDirection): ArticleReco
   });
 }
 
+function dbOrderBy(sort: SortDirection): Prisma.ArticleOrderByWithRelationInput[] {
+  if (sort === "latest") {
+    return [{ publishedAt: "desc" }];
+  }
+
+  if (sort === "oldest") {
+    return [{ publishedAt: "asc" }];
+  }
+
+  return [
+    { externalPopularityScore: "desc" },
+    { viralVelocityScore: "desc" },
+    { hotTopicScore: "desc" },
+    { breakthroughScore: "desc" },
+    { publishedAt: "desc" }
+  ];
+}
+
 function mapArticle(record: ArticleRecord): ArticleCard {
   const tracks = computeLearningTracks(record).tracks;
   const juniorScore = asFiniteNumber(computeJuniorRelevanceScore(record), 0);
@@ -391,9 +410,19 @@ export async function getCategoryCards(): Promise<CategoryCard[]> {
   }));
 }
 
-async function fetchArticleRecords(where?: Prisma.ArticleWhereInput): Promise<ArticleRecord[]> {
+async function fetchArticleRecords(params?: {
+  where?: Prisma.ArticleWhereInput;
+  orderBy?: Prisma.ArticleOrderByWithRelationInput[];
+  skip?: number;
+  take?: number;
+}): Promise<ArticleRecord[]> {
+  const { where, orderBy, skip, take } = params ?? {};
+
   return prisma.article.findMany({
     where,
+    orderBy,
+    skip,
+    take,
     include: {
       source: {
         include: {
@@ -411,29 +440,41 @@ async function fetchArticleRecords(where?: Prisma.ArticleWhereInput): Promise<Ar
 
 export async function getLatestArticles(limit = 10): Promise<ArticleCard[]> {
   const records = await fetchArticleRecords({
-    publishedAt: {
-      gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
-    }
+    where: {
+      publishedAt: {
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
+      }
+    },
+    orderBy: dbOrderBy("latest"),
+    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit)
   });
 
-  return sortRecords(records, "latest").slice(0, limit).map(mapArticle);
+  return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
 }
 
 export async function getPopularArticles(limit = 10): Promise<ArticleCard[]> {
   const records = await fetchArticleRecords({
-    publishedAt: {
-      gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
-    }
+    where: {
+      publishedAt: {
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365)
+      }
+    },
+    orderBy: dbOrderBy("popular"),
+    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit)
   });
 
-  return sortRecords(records, "popular").slice(0, limit).map(mapArticle);
+  return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
 }
 
 export async function getJuniorMustReadArticles(limit = 8): Promise<ArticleCard[]> {
   const records = await fetchArticleRecords({
-    publishedAt: {
-      gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 240)
-    }
+    where: {
+      publishedAt: {
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 240)
+      }
+    },
+    orderBy: dbOrderBy("popular"),
+    take: Math.max(limit * 50, 200)
   });
 
   return sortRecords(records, "popular")
@@ -444,9 +485,13 @@ export async function getJuniorMustReadArticles(limit = 8): Promise<ArticleCard[
 
 export async function getRolloutArticles(limit = 8): Promise<ArticleCard[]> {
   const records = await fetchArticleRecords({
-    publishedAt: {
-      gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120)
-    }
+    where: {
+      publishedAt: {
+        gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 120)
+      }
+    },
+    orderBy: dbOrderBy("latest"),
+    take: Math.max(limit * 50, 200)
   });
 
   return sortRecords(records, "latest")
@@ -477,21 +522,27 @@ export async function getCategoryArticles(params: {
     }
   };
 
-  const records = await fetchArticleRecords(where);
-  const sorted = sortRecords(records, sort);
-  const paged = sorted.slice((safePage - 1) * CATEGORY_PAGE_SIZE, safePage * CATEGORY_PAGE_SIZE);
+  const [total, records] = await Promise.all([
+    prisma.article.count({ where }),
+    fetchArticleRecords({
+      where,
+      orderBy: dbOrderBy(sort),
+      skip: (safePage - 1) * CATEGORY_PAGE_SIZE,
+      take: CATEGORY_PAGE_SIZE
+    })
+  ]);
 
   return {
-    items: paged.map(mapArticle),
+    items: records.map(mapArticle),
     page: safePage,
     pageSize: CATEGORY_PAGE_SIZE,
-    total: sorted.length,
-    totalPages: Math.max(1, Math.ceil(sorted.length / CATEGORY_PAGE_SIZE))
+    total,
+    totalPages: Math.max(1, Math.ceil(total / CATEGORY_PAGE_SIZE))
   };
 }
 
 export async function getArticleDetailBySlug(slug: string): Promise<ArticleDetail | null> {
-  const records = await fetchArticleRecords({ slug });
+  const records = await fetchArticleRecords({ where: { slug }, take: 1 });
   const record = records[0];
 
   if (!record) {
@@ -534,14 +585,20 @@ export async function searchArticles(params: {
       : {})
   };
 
-  const records = await fetchArticleRecords(where);
-  const sorted = sortRecords(records, sort);
-  const paged = sorted.slice((safePage - 1) * SEARCH_PAGE_SIZE, safePage * SEARCH_PAGE_SIZE);
+  const [total, records] = await Promise.all([
+    prisma.article.count({ where }),
+    fetchArticleRecords({
+      where,
+      orderBy: dbOrderBy(sort),
+      skip: (safePage - 1) * SEARCH_PAGE_SIZE,
+      take: SEARCH_PAGE_SIZE
+    })
+  ]);
 
   return {
-    items: paged.map(mapArticle),
-    total: sorted.length,
-    totalPages: Math.max(1, Math.ceil(sorted.length / SEARCH_PAGE_SIZE)),
+    items: records.map(mapArticle),
+    total,
+    totalPages: Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE)),
     page: safePage,
     pageSize: SEARCH_PAGE_SIZE
   };
@@ -562,14 +619,20 @@ export async function getFetchedArticlesByWindow(params: {
     }
   };
 
-  const records = await fetchArticleRecords(where);
-  const sorted = records.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  const paged = sorted.slice((safePage - 1) * INGESTION_PAGE_SIZE, safePage * INGESTION_PAGE_SIZE);
+  const [total, records] = await Promise.all([
+    prisma.article.count({ where }),
+    fetchArticleRecords({
+      where,
+      orderBy: [{ createdAt: "desc" }],
+      skip: (safePage - 1) * INGESTION_PAGE_SIZE,
+      take: INGESTION_PAGE_SIZE
+    })
+  ]);
 
   return {
-    items: paged.map(mapArticle),
-    total: sorted.length,
-    totalPages: Math.max(1, Math.ceil(sorted.length / INGESTION_PAGE_SIZE)),
+    items: records.map(mapArticle),
+    total,
+    totalPages: Math.max(1, Math.ceil(total / INGESTION_PAGE_SIZE)),
     page: safePage,
     pageSize: INGESTION_PAGE_SIZE
   };
