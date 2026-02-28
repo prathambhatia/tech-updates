@@ -8,7 +8,7 @@ import { getCategoryCards, searchArticles } from "@/services/article.service";
 import type { SearchPageProps } from "@/types/app/search-page.types";
 import type { SortDirection } from "@/types/article";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function parsePage(input: string | undefined): number {
   const parsed = Number.parseInt(input ?? "1", 10);
