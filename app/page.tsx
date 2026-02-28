@@ -23,7 +23,7 @@ export default async function HomePage() {
     <div className="space-y-12">
       <section>
         <h1 className="font-display text-4xl font-semibold leading-tight text-ink-900 dark:text-ink-100 sm:text-5xl">
-          Stay current as a junior engineer
+          Stay current as an engineer.
         </h1>
         <p className="mt-4 max-w-3xl text-lg text-ink-700 dark:text-ink-200">
           Read the most important updates in AI, LLMs, system design, and modern engineering architecture from trusted
