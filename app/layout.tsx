@@ -21,7 +21,7 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Tech Updates at one place",
+  title: "Tech Updates at one place.",
   description: "Categorized AI + system design blog aggregation platform"
 };
 
