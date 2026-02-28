@@ -7,9 +7,7 @@ import { SearchFilters } from "@/components/search-filters";
 import { SEARCH_PAGE_SIZE } from "@/services/article/constants";
 import { getCategories, search } from "@/services/article.service";
 import type { SearchPageProps } from "@/types/app/search-page.types";
-import type { CategoryCard, SortDirection } from "@/types/article";
-
-export const revalidate = 86400;
+import type { SortDirection } from "@/types/article";
 
 function parsePage(input: string | undefined): number {
   const parsed = Number.parseInt(input ?? "1", 10);
@@ -36,22 +34,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const offset = (page - 1) * SEARCH_PAGE_SIZE;
   const [categoriesPayload, searchPayload] = await Promise.all([
-    getCategories({
-      cache: {
-        ttlSeconds: 86400,
-        swrSeconds: 3600
-      }
-    }),
+    getCategories(),
     search({
       query: q,
       categorySlug: category,
       sort,
       limit: SEARCH_PAGE_SIZE,
-      offset,
-      cache: {
-        ttlSeconds: 86400,
-        swrSeconds: 3600
-      }
+      offset
     })
   ]);
   const categories = Array.isArray(categoriesPayload) ? categoriesPayload : [];
