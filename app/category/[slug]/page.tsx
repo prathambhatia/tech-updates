@@ -4,11 +4,41 @@ import { notFound } from "next/navigation";
 import { ArticleListItem } from "@/components/article-list-item";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
-import { getCategoryArticles, getCategoryBySlug } from "@/services/article.service";
+import { CATEGORY_PAGE_SIZE } from "@/services/article/constants";
 import type { CategoryPageProps } from "@/types/app/category-page.types";
-import type { SortDirection } from "@/types/article";
+import type { ArticleCard, CategoryCard, SortDirection } from "@/types/article";
 
-export const revalidate = 300;
+export const revalidate = 86400;
+
+type CategoryApiResponse = {
+  category: CategoryCard | null;
+};
+
+type SearchApiResponse = {
+  articles: Array<Omit<ArticleCard, "publishedAt"> & { publishedAt: string }>;
+  total: number;
+};
+
+function toBaseUrl(): string {
+  const explicit = process.env["NEXT_PUBLIC_SITE_URL"]?.trim();
+  if (explicit) {
+    return explicit.replace(/\/+$/, "");
+  }
+
+  const vercel = process.env["VERCEL_URL"]?.trim();
+  if (vercel) {
+    return `https://${vercel}`;
+  }
+
+  return "http://localhost:3000";
+}
+
+function toArticleCard(article: Omit<ArticleCard, "publishedAt"> & { publishedAt: string }): ArticleCard {
+  return {
+    ...article,
+    publishedAt: new Date(article.publishedAt)
+  };
+}
 
 function toSort(value: string | undefined): SortDirection {
   if (value === "latest") {
@@ -28,7 +58,20 @@ function toPage(value: string | undefined): number {
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
-  const category = await getCategoryBySlug(params.slug);
+  const baseUrl = toBaseUrl();
+  const categoryResponse = await fetch(
+    `${baseUrl}/api/categories?${new URLSearchParams({ name: params.slug }).toString()}`,
+    {
+      next: { revalidate: 86400 }
+    }
+  );
+
+  if (!categoryResponse.ok) {
+    notFound();
+  }
+
+  const categoryPayload = (await categoryResponse.json()) as CategoryApiResponse;
+  const category = categoryPayload.category;
 
   if (!category) {
     notFound();
@@ -36,12 +79,29 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   const sort = toSort(searchParams.sort);
   const page = toPage(searchParams.page);
-
-  const result = await getCategoryArticles({
-    categorySlug: category.slug,
+  const offset = (page - 1) * CATEGORY_PAGE_SIZE;
+  const searchQuery = new URLSearchParams({
+    q: "",
+    category: category.slug,
     sort,
-    page
+    limit: String(CATEGORY_PAGE_SIZE),
+    offset: String(offset)
   });
+  const articlesResponse = await fetch(`${baseUrl}/api/search?${searchQuery.toString()}`, {
+    next: { revalidate: 86400 }
+  });
+
+  if (!articlesResponse.ok) {
+    throw new Error("Failed to load category articles");
+  }
+
+  const articlesPayload = (await articlesResponse.json()) as SearchApiResponse;
+  const result = {
+    items: articlesPayload.articles.map(toArticleCard),
+    page,
+    total: articlesPayload.total,
+    totalPages: Math.max(1, Math.ceil(articlesPayload.total / CATEGORY_PAGE_SIZE))
+  };
 
   return (
     <div className="space-y-6">

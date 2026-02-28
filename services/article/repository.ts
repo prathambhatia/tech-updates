@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import {
+  type ReadCacheOptions,
   readArticleDelegate,
   readCategoryDelegate,
   withReadCache
@@ -8,7 +9,7 @@ import {
 import { DISPLAY_CATEGORY_SLUGS } from "@/services/article/category-classifier";
 import type { ArticleRecord, CategoryWithSourcesRecord } from "@/types/services/article.types";
 
-export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesRecord[]> {
+export async function getCategoryCardsRecords(cache?: ReadCacheOptions): Promise<CategoryWithSourcesRecord[]> {
   return readCategoryDelegate.findMany({
     where: {
       slug: {
@@ -16,7 +17,7 @@ export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesReco
       }
     },
     orderBy: { name: "asc" },
-    ...withReadCache(["categories"]),
+    ...withReadCache(["categories"], cache),
     include: {
       _count: {
         select: {
@@ -27,14 +28,14 @@ export async function getCategoryCardsRecords(): Promise<CategoryWithSourcesReco
   });
 }
 
-export async function getCategoryBySlugRecord(slug: string) {
+export async function getCategoryBySlugRecord(slug: string, cache?: ReadCacheOptions) {
   if (!DISPLAY_CATEGORY_SLUGS.includes(slug as (typeof DISPLAY_CATEGORY_SLUGS)[number])) {
     return null;
   }
 
   return readCategoryDelegate.findUnique({
     where: { slug },
-    ...withReadCache([`category:${slug}`])
+    ...withReadCache([`category:${slug}`], cache)
   });
 }
 
@@ -44,15 +45,16 @@ export async function fetchArticleRecords(params?: {
   skip?: number;
   take?: number;
   cacheTags?: string[];
+  cache?: ReadCacheOptions;
 }): Promise<ArticleRecord[]> {
-  const { where, orderBy, skip, take, cacheTags } = params ?? {};
+  const { where, orderBy, skip, take, cacheTags, cache } = params ?? {};
 
   return readArticleDelegate.findMany({
     where,
     orderBy,
     skip,
     take,
-    ...withReadCache(cacheTags ?? ["articles"]),
+    ...withReadCache(cacheTags ?? ["articles"], cache),
     include: {
       category: true,
       source: {
@@ -69,9 +71,13 @@ export async function fetchArticleRecords(params?: {
   });
 }
 
-export async function countArticles(where: Prisma.ArticleWhereInput, cacheTags: string[]): Promise<number> {
+export async function countArticles(
+  where: Prisma.ArticleWhereInput,
+  cacheTags: string[],
+  cache?: ReadCacheOptions
+): Promise<number> {
   return readArticleDelegate.count({
     where,
-    ...withReadCache(cacheTags)
+    ...withReadCache(cacheTags, cache)
   });
 }

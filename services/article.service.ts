@@ -13,6 +13,7 @@ import {
 } from "@/services/article/home.service";
 import { mapArticle } from "@/services/article/mappers";
 import { dbOrderBy } from "@/services/article/ordering";
+import type { ReadCacheOptions } from "@/services/article/cache";
 import type { CategoryWithSourcesRecord } from "@/types/services/article.types";
 import {
   countArticles,
@@ -44,12 +45,40 @@ export async function getCategoryBySlug(slug: string) {
   return getCategoryBySlugRecord(slug);
 }
 
+export async function getCategories(params?: {
+  name?: string;
+  cache?: ReadCacheOptions;
+}): Promise<CategoryCard[] | CategoryCard | null> {
+  const allCategories = await getCategoryCardsRecords(params?.cache);
+  const mapped = allCategories.map((category: CategoryWithSourcesRecord) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    articleCount: category._count.articles
+  }));
+
+  const requestedName = params?.name?.trim();
+  if (!requestedName) {
+    return mapped;
+  }
+
+  const normalizedRequestedName = requestedName.toLowerCase();
+  return (
+    mapped.find(
+      (category) =>
+        category.slug.toLowerCase() === normalizedRequestedName ||
+        category.name.toLowerCase() === normalizedRequestedName
+    ) ?? null
+  );
+}
+
 export async function getCategoryArticles(params: {
   categorySlug: string;
   page: number;
   sort: SortDirection;
+  cache?: ReadCacheOptions;
 }) {
-  const { categorySlug, page, sort } = params;
+  const { categorySlug, page, sort, cache } = params;
   const safePage = Math.max(1, page);
 
   const where: Prisma.ArticleWhereInput = {
@@ -59,13 +88,14 @@ export async function getCategoryArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    countArticles(where, [`category:${categorySlug}:count`]),
+    countArticles(where, [`category:${categorySlug}:count`], cache),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
       skip: (safePage - 1) * CATEGORY_PAGE_SIZE,
       take: CATEGORY_PAGE_SIZE,
-      cacheTags: [`category:${categorySlug}`, `category:${categorySlug}:sort:${sort}`, `page:${safePage}`]
+      cacheTags: [`category:${categorySlug}`, `category:${categorySlug}:sort:${sort}`, `page:${safePage}`],
+      cache
     })
   ]);
 
@@ -79,10 +109,18 @@ export async function getCategoryArticles(params: {
 }
 
 export async function getArticleDetailBySlug(slug: string): Promise<ArticleDetail | null> {
+  return getBySlug(slug);
+}
+
+export async function getBySlug(
+  slug: string,
+  cache?: ReadCacheOptions
+): Promise<ArticleDetail | null> {
   const records = await fetchArticleRecords({
     where: { slug },
     take: 1,
-    cacheTags: [`article:${slug}`]
+    cacheTags: [`article:${slug}`],
+    cache
   });
   const record = records[0];
 
@@ -102,9 +140,36 @@ export async function searchArticles(params: {
   page: number;
   sort?: SortDirection;
 }) {
-  const { query, categorySlug, page, sort = "popular" } = params;
+  const safePage = Math.max(1, params.page);
+  const result = await search({
+    query: params.query,
+    categorySlug: params.categorySlug,
+    sort: params.sort,
+    limit: SEARCH_PAGE_SIZE,
+    offset: (safePage - 1) * SEARCH_PAGE_SIZE
+  });
+
+  return {
+    items: result.articles,
+    total: result.total,
+    totalPages: Math.max(1, Math.ceil(result.total / SEARCH_PAGE_SIZE)),
+    page: safePage,
+    pageSize: SEARCH_PAGE_SIZE
+  };
+}
+
+export async function search(params: {
+  query: string;
+  categorySlug?: string;
+  limit?: number;
+  offset?: number;
+  sort?: SortDirection;
+  cache?: ReadCacheOptions;
+}) {
+  const { query, categorySlug, limit = SEARCH_PAGE_SIZE, offset = 0, sort = "popular", cache } = params;
   const normalizedQuery = query.trim();
-  const safePage = Math.max(1, page);
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+  const safeOffset = Math.max(0, Math.floor(offset));
 
   const where: Prisma.ArticleWhereInput = {
     ...(normalizedQuery
@@ -125,27 +190,27 @@ export async function searchArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    countArticles(where, [`search:${normalizedQuery || "all"}`, `search:category:${categorySlug ?? "all"}:count`]),
+    countArticles(where, [`search:${normalizedQuery || "all"}`, `search:category:${categorySlug ?? "all"}:count`], cache),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
-      skip: (safePage - 1) * SEARCH_PAGE_SIZE,
-      take: SEARCH_PAGE_SIZE,
+      skip: safeOffset,
+      take: safeLimit,
       cacheTags: [
         `search:${normalizedQuery || "all"}`,
         `search:category:${categorySlug ?? "all"}`,
         `search:sort:${sort}`,
-        `page:${safePage}`
-      ]
+        `offset:${safeOffset}`
+      ],
+      cache
     })
   ]);
 
   return {
-    items: records.map(mapArticle),
+    articles: records.map(mapArticle),
     total,
-    totalPages: Math.max(1, Math.ceil(total / SEARCH_PAGE_SIZE)),
-    page: safePage,
-    pageSize: SEARCH_PAGE_SIZE
+    limit: safeLimit,
+    offset: safeOffset
   };
 }
 
