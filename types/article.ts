@@ -14,6 +14,8 @@ export type ArticleCard = {
   categorySlug: string;
   tags: string[];
   popularityScore: number;
+  popularityScoreV2: number;
+  popularityConfidence: number;
   juniorRelevanceScore: number;
   externalPopularityScore: number;
   viralVelocityScore: number;

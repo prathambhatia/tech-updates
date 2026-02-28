@@ -16,6 +16,27 @@ type RefreshResult = {
   trendingKeywords: string[];
 };
 
+type BackfillResult = {
+  checkedCount: number;
+  updatedCount: number;
+};
+
+export type PopularityV2Input = {
+  publishedAt: Date;
+  externalPopularityScore: number;
+  externalPopularityPrevScore: number;
+  viralVelocityScore: number;
+  hotTopicScore: number;
+  breakthroughScore: number;
+  popularityLastCheckedAt?: Date | null;
+  sourceName?: string | null;
+  readingTime?: number | null;
+  title?: string | null;
+  summary?: string | null;
+  contentPreview?: string | null;
+  tags?: string[];
+};
+
 const STOPWORDS = new Set([
   "the",
   "and",
@@ -151,6 +172,28 @@ const BREAKTHROUGH_RULES: Array<{ boost: number; keywords: string[] }> = [
   }
 ];
 
+const SOURCE_QUALITY_WEIGHTS: Record<string, number> = {
+  OpenAI: 22,
+  Anthropic: 21,
+  Cognition: 19,
+  HuggingFace: 18,
+  "Google DeepMind Blog": 19,
+  Cloudflare: 17,
+  LangChain: 16,
+  "Vercel AI": 16,
+  "Netflix Tech Blog": 16,
+  "Uber Engineering": 15,
+  "Meta Engineering": 15,
+  "AWS Architecture": 15,
+  "Google Cloud Blog": 15,
+  "Stripe Engineering": 15,
+  "Dropbox Tech": 14
+};
+
+const LOW_SIGNAL_PATTERNS = ["support@", "press@", "download press kit", "copyright", "all rights reserved"];
+const DEFAULT_POPULARITY_HALF_LIFE_HOURS = 168;
+const POPULARITY_PRIOR = 50;
+
 const USER_AGENT = "AI-Systems-Intelligence/1.0";
 
 function sleep(ms: number) {
@@ -161,6 +204,18 @@ function sleep(ms: number) {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function safeRound(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Number(value.toFixed(2));
+}
+
+function sigmoid(value: number): number {
+  return 1 / (1 + Math.exp(-value));
 }
 
 function canonicalVariants(rawUrl: string): string[] {
@@ -322,6 +377,71 @@ function computeBreakthroughScore(content: string): number {
   }
 
   return clamp(score, 0, 150);
+}
+
+function contentLooksLowSignal(input: PopularityV2Input): boolean {
+  const merged = asTextParts([input.title, input.summary, input.contentPreview, ...(input.tags ?? [])]);
+  if (!merged) {
+    return true;
+  }
+
+  if ((input.title ?? "").trim().length < 12) {
+    return true;
+  }
+
+  return LOW_SIGNAL_PATTERNS.some((pattern) => merged.includes(pattern));
+}
+
+export function computePopularityV2(input: PopularityV2Input, now = new Date()): {
+  score: number;
+  confidence: number;
+} {
+  const halfLifeHours =
+    Number.isFinite(env.POPULARITY_HALF_LIFE_HOURS) && env.POPULARITY_HALF_LIFE_HOURS > 0
+      ? env.POPULARITY_HALF_LIFE_HOURS
+      : DEFAULT_POPULARITY_HALF_LIFE_HOURS;
+
+  const ageHours = Math.max(0, (now.getTime() - input.publishedAt.getTime()) / (1000 * 60 * 60));
+  const decay = Math.exp(-ageHours / halfLifeHours);
+
+  const momentum = input.externalPopularityScore - input.externalPopularityPrevScore;
+  const momentumNorm = sigmoid(momentum / 120);
+  const viralNorm = clamp(input.viralVelocityScore / 260, 0, 1);
+  const trendComponent = clamp((viralNorm * 0.4 + momentumNorm * 0.35 + decay * 0.25) * 100, 0, 100);
+
+  const sourceNorm = clamp((SOURCE_QUALITY_WEIGHTS[input.sourceName ?? ""] ?? 10) / 22, 0, 1);
+  const depthNorm = clamp((input.readingTime ?? 0) / 20, 0, 1);
+  const breakthroughNorm = clamp(input.breakthroughScore / 150, 0, 1);
+  const hotTopicNorm = clamp(input.hotTopicScore / 160, 0, 1);
+  const lowSignalPenalty = contentLooksLowSignal(input) ? 22 : 0;
+  const qualityComponent = clamp(
+    (sourceNorm * 0.35 + depthNorm * 0.2 + breakthroughNorm * 0.25 + hotTopicNorm * 0.2) * 100 - lowSignalPenalty,
+    0,
+    100
+  );
+
+  const externalNorm = clamp(Math.log1p(Math.max(0, input.externalPopularityScore)) / Math.log1p(1100), 0, 1);
+  const viralEngagementNorm = clamp(Math.log1p(Math.max(0, input.viralVelocityScore)) / Math.log1p(260), 0, 1);
+  const engagementComponent = clamp((externalNorm * 0.7 + viralEngagementNorm * 0.3) * 100, 0, 100);
+
+  const signalEvidence = [
+    input.externalPopularityScore > 0 ? 1 : 0,
+    input.viralVelocityScore > 0 ? 1 : 0,
+    input.hotTopicScore > 0 ? 1 : 0,
+    input.breakthroughScore > 0 ? 1 : 0
+  ];
+  const signalCoverage = signalEvidence.reduce((sum, value) => sum + value, 0) / signalEvidence.length;
+  const freshnessConfidence = clamp(1 - ageHours / (halfLifeHours * 6), 0.25, 1);
+  const recencyConfidenceBoost = ageHours <= 48 ? 0.08 : 0;
+  const confidence = clamp(0.25 + signalCoverage * 0.55 + freshnessConfidence * 0.2 + recencyConfidenceBoost, 0, 1);
+
+  const baseScore = trendComponent * 0.45 + qualityComponent * 0.35 + engagementComponent * 0.2;
+  const score = clamp(baseScore * confidence + POPULARITY_PRIOR * (1 - confidence), 0, 100);
+
+  return {
+    score: safeRound(score),
+    confidence: safeRound(confidence)
+  };
 }
 
 async function fetchHackerNewsScore(url: string): Promise<number> {
@@ -620,9 +740,21 @@ export async function refreshExternalPopularitySignals(options?: {
       title: true,
       summary: true,
       contentPreview: true,
+      readingTime: true,
       externalPopularityScore: true,
+      externalPopularityPrevScore: true,
       viralVelocityScore: true,
+      hotTopicScore: true,
+      breakthroughScore: true,
+      popularityScoreV2: true,
+      popularityConfidence: true,
       popularityLastCheckedAt: true,
+      publishedAt: true,
+      source: {
+        select: {
+          name: true
+        }
+      },
       tags: {
         select: {
           tag: {
@@ -661,15 +793,41 @@ export async function refreshExternalPopularitySignals(options?: {
 
       const hotTopicScore = computeHotTopicScore(articleText, trendingKeywords);
       const breakthroughScore = computeBreakthroughScore(articleText);
+      const nextExternalScore = signal.totalScore;
+      const v2 = computePopularityV2(
+        {
+          publishedAt: article.publishedAt,
+          externalPopularityScore: nextExternalScore,
+          externalPopularityPrevScore: previousScore,
+          viralVelocityScore,
+          hotTopicScore,
+          breakthroughScore,
+          popularityLastCheckedAt: article.popularityLastCheckedAt,
+          sourceName: article.source.name,
+          readingTime: article.readingTime,
+          title: article.title,
+          summary: article.summary,
+          contentPreview: article.contentPreview,
+          tags: article.tags.map((entry) => entry.tag.name)
+        },
+        new Date()
+      );
 
       await prisma.article.update({
         where: { id: article.id },
         data: {
           externalPopularityPrevScore: previousScore,
-          externalPopularityScore: signal.totalScore,
+          externalPopularityScore: nextExternalScore,
           viralVelocityScore,
           hotTopicScore,
           breakthroughScore,
+          ...(env.POPULARITY_V2_ENABLED
+            ? {
+                popularityScoreV2: v2.score,
+                popularityConfidence: v2.confidence,
+                popularityComputedAt: new Date()
+              }
+            : {}),
           popularityLastCheckedAt: new Date()
         }
       });
@@ -688,5 +846,91 @@ export async function refreshExternalPopularitySignals(options?: {
     updatedCount,
     errors,
     trendingKeywords: trendingKeywords.slice(0, 20)
+  };
+}
+
+export async function backfillPopularityV2(options?: {
+  daysBack?: number;
+  limit?: number;
+}): Promise<BackfillResult> {
+  const daysBack = options?.daysBack ?? 365;
+  const limit = options?.limit ?? 5000;
+  const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+
+  const articles = await prisma.article.findMany({
+    where: {
+      publishedAt: {
+        gte: since
+      }
+    },
+    orderBy: {
+      publishedAt: "desc"
+    },
+    take: limit,
+    select: {
+      id: true,
+      title: true,
+      summary: true,
+      contentPreview: true,
+      readingTime: true,
+      publishedAt: true,
+      externalPopularityScore: true,
+      externalPopularityPrevScore: true,
+      viralVelocityScore: true,
+      hotTopicScore: true,
+      breakthroughScore: true,
+      popularityLastCheckedAt: true,
+      source: {
+        select: {
+          name: true
+        }
+      },
+      tags: {
+        select: {
+          tag: {
+            select: {
+              name: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  let updatedCount = 0;
+  for (const article of articles) {
+    const v2 = computePopularityV2(
+      {
+        publishedAt: article.publishedAt,
+        externalPopularityScore: article.externalPopularityScore,
+        externalPopularityPrevScore: article.externalPopularityPrevScore,
+        viralVelocityScore: article.viralVelocityScore,
+        hotTopicScore: article.hotTopicScore,
+        breakthroughScore: article.breakthroughScore,
+        popularityLastCheckedAt: article.popularityLastCheckedAt,
+        sourceName: article.source.name,
+        readingTime: article.readingTime,
+        title: article.title,
+        summary: article.summary,
+        contentPreview: article.contentPreview,
+        tags: article.tags.map((entry) => entry.tag.name)
+      },
+      new Date()
+    );
+
+    await prisma.article.update({
+      where: { id: article.id },
+      data: {
+        popularityScoreV2: v2.score,
+        popularityConfidence: v2.confidence,
+        popularityComputedAt: new Date()
+      }
+    });
+    updatedCount += 1;
+  }
+
+  return {
+    checkedCount: articles.length,
+    updatedCount
   };
 }

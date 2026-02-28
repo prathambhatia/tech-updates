@@ -9,6 +9,8 @@ const envSchema = z.object({
   INGESTION_DAILY_CRON: z.string().default("0 6 * * *"),
   POPULARITY_REFRESH_ENABLED: z.string().default("false"),
   POPULARITY_REFRESH_INTERVAL_HOURS: z.string().default("6"),
+  POPULARITY_V2_ENABLED: z.string().default("true"),
+  POPULARITY_HALF_LIFE_HOURS: z.string().default("168"),
   X_BEARER_TOKEN: z.string().optional(),
   GITHUB_TOKEN: z.string().optional()
 });
@@ -22,6 +24,8 @@ const parsed = envSchema.safeParse({
   INGESTION_DAILY_CRON: process.env["INGESTION_DAILY_CRON"],
   POPULARITY_REFRESH_ENABLED: process.env["POPULARITY_REFRESH_ENABLED"],
   POPULARITY_REFRESH_INTERVAL_HOURS: process.env["POPULARITY_REFRESH_INTERVAL_HOURS"],
+  POPULARITY_V2_ENABLED: process.env["POPULARITY_V2_ENABLED"],
+  POPULARITY_HALF_LIFE_HOURS: process.env["POPULARITY_HALF_LIFE_HOURS"],
   X_BEARER_TOKEN: process.env["X_BEARER_TOKEN"],
   GITHUB_TOKEN: process.env["GITHUB_TOKEN"]
 });
@@ -41,6 +45,8 @@ export const env = {
   INGESTION_DAILY_CRON: parsedData["INGESTION_DAILY_CRON"],
   POPULARITY_REFRESH_ENABLED: parsedData["POPULARITY_REFRESH_ENABLED"] === "true",
   POPULARITY_REFRESH_INTERVAL_HOURS: Number.parseInt(parsedData["POPULARITY_REFRESH_INTERVAL_HOURS"], 10),
+  POPULARITY_V2_ENABLED: parsedData["POPULARITY_V2_ENABLED"] === "true",
+  POPULARITY_HALF_LIFE_HOURS: Number.parseInt(parsedData["POPULARITY_HALF_LIFE_HOURS"], 10),
   X_BEARER_TOKEN: parsedData["X_BEARER_TOKEN"]?.trim() || null,
   GITHUB_TOKEN: parsedData["GITHUB_TOKEN"]?.trim() || null
 } as const;

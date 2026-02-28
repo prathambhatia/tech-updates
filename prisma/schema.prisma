@@ -46,6 +46,9 @@ model Article {
   hotTopicScore               Int      @default(0)
   breakthroughScore           Int      @default(0)
   popularityLastCheckedAt     DateTime?
+  popularityScoreV2           Float    @default(0)
+  popularityConfidence        Float    @default(0)
+  popularityComputedAt        DateTime?
   sourceId       String   @db.Uuid
   createdAt      DateTime @default(now())
 
@@ -55,6 +58,7 @@ model Article {
   @@index([publishedAt])
   @@index([sourceId, publishedAt])
   @@index([externalPopularityScore])
+  @@index([popularityScoreV2])
   @@index([viralVelocityScore])
   @@index([hotTopicScore])
 }

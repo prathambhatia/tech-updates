@@ -7,10 +7,12 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental false",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "popularity:backfill": "tsx scripts/backfill-popularity-v2.ts",
+    "popularity:test": "tsx scripts/test-popularity-v2.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

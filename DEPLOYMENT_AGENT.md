@@ -28,6 +28,8 @@ Use `scripts/deploy/vercel_pg_deploy_agent.sh` to deploy this project with data-
 - `INGESTION_DAILY_CRON`
 - `POPULARITY_REFRESH_ENABLED` (recommended `false` on Vercel)
 - `POPULARITY_REFRESH_INTERVAL_HOURS`
+- `POPULARITY_V2_ENABLED` (recommended `true`)
+- `POPULARITY_HALF_LIFE_HOURS` (default `168`)
 - `X_BEARER_TOKEN`
 - `GITHUB_TOKEN`
 
