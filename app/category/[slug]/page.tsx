@@ -7,9 +7,7 @@ import { PaginationLinks } from "@/components/pagination-links";
 import { CATEGORY_PAGE_SIZE } from "@/services/article/constants";
 import { getCategories, search } from "@/services/article.service";
 import type { CategoryPageProps } from "@/types/app/category-page.types";
-import type { CategoryCard, SortDirection } from "@/types/article";
-
-export const revalidate = 86400;
+import type { SortDirection } from "@/types/article";
 
 function toSort(value: string | undefined): SortDirection {
   if (value === "latest") {
@@ -30,11 +28,7 @@ function toPage(value: string | undefined): number {
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const categoryResult = await getCategories({
-    name: params.slug,
-    cache: {
-      ttlSeconds: 86400,
-      swrSeconds: 3600
-    }
+    name: params.slug
   });
   const category = Array.isArray(categoryResult) ? null : categoryResult;
 
@@ -50,11 +44,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     categorySlug: category.slug,
     sort,
     limit: CATEGORY_PAGE_SIZE,
-    offset,
-    cache: {
-      ttlSeconds: 86400,
-      swrSeconds: 3600
-    }
+    offset
   });
   const result = {
     items: articlesPayload.articles,

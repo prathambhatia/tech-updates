@@ -6,13 +6,8 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getBySlug } from "@/services/article.service";
 import { formatDate } from "@/utils/date";
 
-export const revalidate = 86400;
-
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const article = await getBySlug(params.slug, {
-    ttlSeconds: 86400,
-    swrSeconds: 3600
-  });
+  const article = await getBySlug(params.slug);
 
   if (!article) {
     notFound();
