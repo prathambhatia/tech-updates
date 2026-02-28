@@ -42,9 +42,9 @@ export default function RootLayout({
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
               <div>
                 <Link href="/" className="font-display text-2xl font-bold tracking-tight text-ink-900 dark:text-slate-100">
-                  AI Systems Intelligence
+                  Tech Updates
                 </Link>
-                <p className="text-sm text-ink-600 dark:text-slate-400">AI + system design aggregation</p>
+                <p className="text-sm text-ink-600 dark:text-slate-400"></p>
               </div>
               <div className="flex items-center gap-3">
                 <Link
