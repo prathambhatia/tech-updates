@@ -5,40 +5,11 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { SearchFilters } from "@/components/search-filters";
 import { SEARCH_PAGE_SIZE } from "@/services/article/constants";
+import { getCategories, search } from "@/services/article.service";
 import type { SearchPageProps } from "@/types/app/search-page.types";
-import type { ArticleCard, CategoryCard, SortDirection } from "@/types/article";
+import type { CategoryCard, SortDirection } from "@/types/article";
 
 export const revalidate = 86400;
-
-type SearchApiResponse = {
-  articles: Array<Omit<ArticleCard, "publishedAt"> & { publishedAt: string }>;
-  total: number;
-};
-
-type CategoriesApiResponse = {
-  categories: CategoryCard[];
-};
-
-function toBaseUrl(): string {
-  const vercel = process.env["VERCEL_URL"]?.trim();
-  if (vercel) {
-    return `https://${vercel}`;
-  }
-
-  const explicit = process.env["NEXT_PUBLIC_SITE_URL"]?.trim();
-  if (explicit) {
-    return explicit.replace(/\/+$/, "");
-  }
-
-  return "http://localhost:3000";
-}
-
-function toArticleCard(article: Omit<ArticleCard, "publishedAt"> & { publishedAt: string }): ArticleCard {
-  return {
-    ...article,
-    publishedAt: new Date(article.publishedAt)
-  };
-}
 
 function parsePage(input: string | undefined): number {
   const parsed = Number.parseInt(input ?? "1", 10);
@@ -63,34 +34,29 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const sort = parseSort(searchParams.sort);
   const page = parsePage(searchParams.page);
 
-  const baseUrl = toBaseUrl();
   const offset = (page - 1) * SEARCH_PAGE_SIZE;
-  const queryParams = new URLSearchParams({
-    q,
-    category,
-    sort,
-    limit: String(SEARCH_PAGE_SIZE),
-    offset: String(offset)
-  });
-
-  const [categoriesResponse, searchResponse] = await Promise.all([
-    fetch(`${baseUrl}/api/categories`, {
-      next: { revalidate: 86400 }
+  const [categoriesPayload, searchPayload] = await Promise.all([
+    getCategories({
+      cache: {
+        ttlSeconds: 86400,
+        swrSeconds: 3600
+      }
     }),
-    fetch(`${baseUrl}/api/search?${queryParams.toString()}`, {
-      next: { revalidate: 86400 }
+    search({
+      query: q,
+      categorySlug: category,
+      sort,
+      limit: SEARCH_PAGE_SIZE,
+      offset,
+      cache: {
+        ttlSeconds: 86400,
+        swrSeconds: 3600
+      }
     })
   ]);
-
-  if (!categoriesResponse.ok || !searchResponse.ok) {
-    throw new Error("Failed to load search data");
-  }
-
-  const categoriesPayload = (await categoriesResponse.json()) as CategoriesApiResponse;
-  const searchPayload = (await searchResponse.json()) as SearchApiResponse;
-  const categories = categoriesPayload.categories;
+  const categories = Array.isArray(categoriesPayload) ? categoriesPayload : [];
   const result = {
-    items: searchPayload.articles.map(toArticleCard),
+    items: searchPayload.articles,
     total: searchPayload.total,
     totalPages: Math.max(1, Math.ceil(searchPayload.total / SEARCH_PAGE_SIZE)),
     page

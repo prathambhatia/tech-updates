@@ -3,49 +3,16 @@ import { notFound } from "next/navigation";
 
 import type { ArticlePageProps } from "@/types/app/article-page.types";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import type { ArticleDetail } from "@/types/article";
+import { getBySlug } from "@/services/article.service";
 import { formatDate } from "@/utils/date";
 
 export const revalidate = 86400;
 
-type ArticleApiResponse = {
-  article: (Omit<ArticleDetail, "publishedAt"> & { publishedAt: string }) | null;
-};
-
-function toBaseUrl(): string {
-  const vercel = process.env["VERCEL_URL"]?.trim();
-  if (vercel) {
-    return `https://${vercel}`;
-  }
-
-  const explicit = process.env["NEXT_PUBLIC_SITE_URL"]?.trim();
-  if (explicit) {
-    return explicit.replace(/\/+$/, "");
-  }
-
-  return "http://localhost:3000";
-}
-
-function toArticleDetail(article: Omit<ArticleDetail, "publishedAt"> & { publishedAt: string }): ArticleDetail {
-  return {
-    ...article,
-    publishedAt: new Date(article.publishedAt)
-  };
-}
-
 export default async function ArticlePage({ params }: ArticlePageProps) {
-  const baseUrl = toBaseUrl();
-  const queryParams = new URLSearchParams({ slug: params.slug });
-  const response = await fetch(`${baseUrl}/api/articles?${queryParams.toString()}`, {
-    next: { revalidate: 86400 }
+  const article = await getBySlug(params.slug, {
+    ttlSeconds: 86400,
+    swrSeconds: 3600
   });
-
-  if (!response.ok) {
-    notFound();
-  }
-
-  const payload = (await response.json()) as ArticleApiResponse;
-  const article = payload.article ? toArticleDetail(payload.article) : null;
 
   if (!article) {
     notFound();
