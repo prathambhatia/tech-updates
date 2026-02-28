@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 function applyTheme(theme: "light" | "dark") {
@@ -57,10 +58,19 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="rounded-full border border-ink-300 px-3 py-1 text-sm font-medium text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+      title={theme === "dark" ? "Switch to Light mode" : "Switch to Dark mode"}
+      className="rounded-full border border-ink-300 p-2 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
       aria-label="Toggle dark mode"
     >
-      {theme === "dark" ? "Light" : "Dark"}
+      <Image
+        src={theme === "dark" ? "/assets/icons/sun.svg" : "/assets/icons/moon.svg"}
+        alt=""
+        aria-hidden="true"
+        width={20}
+        height={20}
+        className="h-5 w-5 dark:invert"
+      />
+      <span className="sr-only">{theme === "dark" ? "Switch to Light mode" : "Switch to Dark mode"}</span>
     </button>
   );
 }

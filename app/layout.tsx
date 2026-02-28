@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Playfair_Display, Source_Sans_3 } from "next/font/google";
 
@@ -49,21 +50,48 @@ export default function RootLayout({
               <div className="flex items-center gap-3">
                 <Link
                   href="/"
-                  className="rounded-full border border-ink-300 px-3 py-1 text-sm font-medium text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+                  title="Home"
+                  className="rounded-full border border-ink-300 p-2 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
                 >
-                  Home
+                  <Image
+                    src="/assets/icons/home.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 dark:invert"
+                  />
+                  <span className="sr-only">Home</span>
                 </Link>
                 <Link
                   href="/#categories"
-                  className="rounded-full border border-ink-300 px-3 py-1 text-sm font-medium text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+                  title="Categories"
+                  className="rounded-full border border-ink-300 p-2 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
                 >
-                  Categories
+                  <Image
+                    src="/assets/icons/categories.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 dark:invert"
+                  />
+                  <span className="sr-only">Categories</span>
                 </Link>
                 <Link
                   href="/search"
-                  className="rounded-full border border-ink-300 px-3 py-1 text-sm font-medium text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+                  title="Search"
+                  className="rounded-full border border-ink-300 p-2 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
                 >
-                  Search
+                  <Image
+                    src="/assets/icons/search.svg"
+                    alt=""
+                    aria-hidden="true"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5 dark:invert"
+                  />
+                  <span className="sr-only">Search</span>
                 </Link>
                 {env.INGESTION_MANUAL_TRIGGER_ENABLED ? <IngestionControls /> : null}
                 <ThemeToggle />
