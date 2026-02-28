@@ -53,9 +53,16 @@ export async function getAdminIngestionReport(params?: {
     countsByDate.set(key, (countsByDate.get(key) ?? 0) + 1);
   }
 
+  let bucketRangeStart = periodStart;
+  if (createdAtRows.length > 0) {
+    const oldestRow = createdAtRows.at(-1);
+    if (oldestRow) {
+      bucketRangeStart = startOfUtcDay(oldestRow.createdAt);
+    }
+  }
+
   const dayBuckets: AdminDailyFetchBucket[] = [];
-  for (let offset = days - 1; offset >= 0; offset -= 1) {
-    const bucketStart = addUtcDays(todayUtcStart, -offset);
+  for (let bucketStart = bucketRangeStart; bucketStart < periodEnd; bucketStart = addUtcDays(bucketStart, 1)) {
     const bucketEnd = addUtcDays(bucketStart, 1);
     const key = buildUtcDateKey(bucketStart);
 
