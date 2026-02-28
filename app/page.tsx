@@ -8,6 +8,8 @@ import {
   getRolloutArticles
 } from "@/services/article.service";
 
+export const revalidate = 300;
+
 export default async function HomePage() {
   const [categories, mustReadArticles, popularArticles, rolloutArticles, latestArticles] = await Promise.all([
     getCategoryCards(),
@@ -29,7 +31,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <section className="space-y-4">
+      <section id="categories" className="scroll-mt-24 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-3xl font-semibold text-ink-900 dark:text-ink-100">Categories</h2>
         </div>

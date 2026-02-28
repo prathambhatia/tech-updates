@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getArticleDetailBySlug } from "@/services/article.service";
 import { formatDate } from "@/utils/date";
 
@@ -8,6 +10,8 @@ type ArticlePageProps = {
     slug: string;
   };
 };
+
+export const revalidate = 600;
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const article = await getArticleDetailBySlug(params.slug);
@@ -18,6 +22,21 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   return (
     <article className="mx-auto max-w-3xl rounded-2xl border border-ink-200 bg-white px-6 py-10 shadow-sm dark:border-slate-800 dark:bg-slate-900/75 dark:shadow-[0_20px_45px_rgba(2,8,23,0.5)] sm:px-10">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: article.categoryName, href: `/category/${article.categorySlug}` },
+            { label: "Article" }
+          ]}
+        />
+        <Link
+          href={`/category/${article.categorySlug}`}
+          className="text-sm font-semibold text-ink-700 hover:text-accent-600 dark:text-slate-200 dark:hover:text-teal-200"
+        >
+          Back to Category
+        </Link>
+      </div>
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-slate-400">
         {article.sourceName} • {article.categoryName}
       </p>

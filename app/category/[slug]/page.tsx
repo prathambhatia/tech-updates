@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ArticleListItem } from "@/components/article-list-item";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { getCategoryArticles, getCategoryBySlug } from "@/services/article.service";
 import type { SortDirection } from "@/types/article";
@@ -15,6 +16,8 @@ type CategoryPageProps = {
     sort?: string;
   };
 };
+
+export const revalidate = 300;
 
 function toSort(value: string | undefined): SortDirection {
   if (value === "latest") {
@@ -52,6 +55,21 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-ink-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-[0_16px_36px_rgba(2,8,23,0.45)]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumbs
+            items={[
+              { label: "Home", href: "/" },
+              { label: "Categories", href: "/#categories" },
+              { label: category.name }
+            ]}
+          />
+          <Link
+            href="/"
+            className="text-sm font-semibold text-ink-700 hover:text-accent-600 dark:text-slate-200 dark:hover:text-teal-200"
+          >
+            Back to Home
+          </Link>
+        </div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-slate-400">Category</p>
         <h1 className="mt-2 font-display text-4xl font-semibold text-ink-900 dark:text-slate-100">{category.name}</h1>
         <div className="mt-5 flex flex-wrap gap-2">

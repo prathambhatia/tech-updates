@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { ArticleListItem } from "@/components/article-list-item";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { SearchFilters } from "@/components/search-filters";
 import { getCategoryCards, searchArticles } from "@/services/article.service";
@@ -12,6 +15,8 @@ type SearchPageProps = {
     page?: string;
   };
 };
+
+export const dynamic = "force-dynamic";
 
 function parsePage(input: string | undefined): number {
   const parsed = Number.parseInt(input ?? "1", 10);
@@ -49,6 +54,15 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-ink-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-[0_16px_36px_rgba(2,8,23,0.45)]">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Search" }]} />
+          <Link
+            href="/"
+            className="text-sm font-semibold text-ink-700 hover:text-accent-600 dark:text-slate-200 dark:hover:text-teal-200"
+          >
+            Back to Home
+          </Link>
+        </div>
         <h1 className="font-display text-4xl font-semibold text-ink-900 dark:text-slate-100">Discover Articles</h1>
         <p className="mt-3 text-sm text-ink-600 dark:text-slate-400">
           Select a category to browse instantly, or add a keyword to narrow results.
