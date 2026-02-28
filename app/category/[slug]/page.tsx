@@ -5,17 +5,8 @@ import { ArticleListItem } from "@/components/article-list-item";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PaginationLinks } from "@/components/pagination-links";
 import { getCategoryArticles, getCategoryBySlug } from "@/services/article.service";
+import type { CategoryPageProps } from "@/app/category/[slug]/page.types";
 import type { SortDirection } from "@/types/article";
-
-type CategoryPageProps = {
-  params: {
-    slug: string;
-  };
-  searchParams: {
-    page?: string;
-    sort?: string;
-  };
-};
 
 export const revalidate = 300;
 

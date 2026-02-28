@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { env } from "@/lib/env";
+import type { DailySchedule } from "@/lib/scheduler.types";
 import { ingestAllSources } from "@/services/ingestion.service";
 import { refreshExternalPopularitySignals } from "@/services/popularity-signals.service";
 
@@ -17,11 +18,6 @@ declare global {
   // eslint-disable-next-line no-var
   var popularitySchedulerTimer: NodeJS.Timeout | undefined;
 }
-
-type DailySchedule = {
-  hour: number;
-  minute: number;
-};
 
 const CATCHUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LAST_RUN_FILE = path.join(process.cwd(), ".scheduler", "last-ingestion-success.json");

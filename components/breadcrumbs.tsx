@@ -1,11 +1,4 @@
-type BreadcrumbItem = {
-  label: string;
-  href?: string;
-};
-
-type BreadcrumbsProps = {
-  items: BreadcrumbItem[];
-};
+import type { BreadcrumbsProps } from "@/components/breadcrumbs.types";
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (

@@ -1,20 +1,9 @@
 import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
+import type { CategorySeed, SourceSeed } from "@/prisma/seed.types";
 
 const prisma = new PrismaClient();
-
-type CategorySeed = {
-  name: string;
-  slug: string;
-};
-
-type SourceSeed = {
-  name: string;
-  url: string;
-  rssUrl: string;
-  categorySlug: string;
-};
 
 const categories: CategorySeed[] = [
   { name: "Frontier AI & Agents", slug: "frontier-ai-agents" },

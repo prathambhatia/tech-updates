@@ -1,314 +1,29 @@
 import type { Prisma } from "@prisma/client";
 
-import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
+import {
+  readArticleDelegate,
+  readCategoryDelegate,
+  withReadCache
+} from "@/services/article/cache";
+import {
+  asFiniteNumber,
+  computeJuniorRelevanceScore,
+  computeLearningTracks,
+  computePopularityScore,
+  effectiveReadingTime,
+  importanceLevel,
+  isLowSignalArticle,
+  resolvedBreakthroughScore,
+  resolvedHotTopicScore
+} from "@/services/article/scoring";
+import type { ArticleRecord, CategoryWithSourcesRecord } from "@/services/article/types";
 import type { ArticleCard, ArticleDetail, CategoryCard, SortDirection } from "@/types/article";
-import { countWords, estimateReadingTime } from "@/utils/text";
 
 const CATEGORY_PAGE_SIZE = 12;
 const SEARCH_PAGE_SIZE = 12;
 const INGESTION_PAGE_SIZE = 12;
 const CANDIDATE_MULTIPLIER = 4;
-
-const SOURCE_POPULARITY_WEIGHTS: Record<string, number> = {
-  OpenAI: 22,
-  Anthropic: 21,
-  Cognition: 19,
-  HuggingFace: 18,
-  "Google DeepMind Blog": 19,
-  Cloudflare: 17,
-  LangChain: 16,
-  "Vercel AI": 16,
-  "Netflix Tech Blog": 16,
-  "Uber Engineering": 15,
-  "Meta Engineering": 15,
-  "AWS Architecture": 15,
-  "Google Cloud Blog": 15,
-  "Stripe Engineering": 15,
-  "Dropbox Tech": 14
-};
-
-type KeywordRule = {
-  label?: string;
-  boost: number;
-  keywords: string[];
-};
-
-const TRACK_RULES: KeywordRule[] = [
-  {
-    label: "System Design",
-    boost: 20,
-    keywords: [
-      "system design",
-      "architecture",
-      "distributed",
-      "scaling",
-      "latency",
-      "throughput",
-      "fault tolerance",
-      "database",
-      "queue",
-      "event driven",
-      "consensus",
-      "replication"
-    ]
-  },
-  {
-    label: "AI & LLM",
-    boost: 20,
-    keywords: [
-      "llm",
-      "transformer",
-      "rag",
-      "agent",
-      "inference",
-      "prompt",
-      "model",
-      "eval",
-      "fine-tuning",
-      "embedding",
-      "reasoning",
-      "context window"
-    ]
-  },
-  {
-    label: "Infra & Platforms",
-    boost: 16,
-    keywords: [
-      "kubernetes",
-      "cloud",
-      "platform",
-      "deployment",
-      "observability",
-      "incident",
-      "sre",
-      "devops",
-      "multi-tenant",
-      "availability"
-    ]
-  },
-  {
-    label: "New Tech Rollout",
-    boost: 16,
-    keywords: [
-      "introducing",
-      "launch",
-      "announcing",
-      "released",
-      "rollout",
-      "new feature",
-      "new model",
-      "research preview",
-      "general availability"
-    ]
-  }
-];
-
-const HOT_TOPIC_RULES: KeywordRule[] = [
-  {
-    boost: 16,
-    keywords: ["reasoning model", "agentic", "mcp", "model context protocol", "ai coding", "copilot"]
-  },
-  {
-    boost: 14,
-    keywords: ["rag", "vector database", "inference", "gpu", "latency", "benchmark", "cost optimization"]
-  },
-  {
-    boost: 12,
-    keywords: ["distributed systems", "observability", "incident response", "platform engineering", "serverless"]
-  }
-];
-
-const BREAKTHROUGH_RULES: KeywordRule[] = [
-  {
-    boost: 20,
-    keywords: ["breakthrough", "state-of-the-art", "state of the art", "sota", "frontier model"]
-  },
-  {
-    boost: 18,
-    keywords: ["reasoning", "new model", "model release", "launch", "rollout", "announcing", "introducing"]
-  },
-  {
-    boost: 14,
-    keywords: ["benchmark", "paper", "open-source", "open source", "research", "test-time compute", "multimodal"]
-  }
-];
-
-const LOW_SIGNAL_PATTERNS = ["support@", "press@", "download press kit", "copyright", "all rights reserved"];
-
-type ArticleRecord = Prisma.ArticleGetPayload<{
-  include: {
-    source: {
-      include: {
-        category: true;
-      };
-    };
-    tags: {
-      include: {
-        tag: true;
-      };
-    };
-  };
-}>;
-
-function asFiniteNumber(value: number, fallback = 0): number {
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function safeRound(value: number): number {
-  const finite = asFiniteNumber(value, 0);
-  return Number(finite.toFixed(2));
-}
-
-function normalizedContent(record: ArticleRecord): string {
-  return [record.title, record.summary, record.contentPreview, ...record.tags.map((binding) => binding.tag.name)]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
-function scoreKeywordRules(content: string, rules: KeywordRule[]): { score: number; labels: string[] } {
-  const labels: string[] = [];
-  let score = 0;
-
-  for (const rule of rules) {
-    if (!rule.keywords.some((keyword) => content.includes(keyword))) {
-      continue;
-    }
-
-    score += rule.boost;
-    if (rule.label) {
-      labels.push(rule.label);
-    }
-  }
-
-  return {
-    score,
-    labels
-  };
-}
-
-function computeLearningTracks(record: ArticleRecord): { tracks: string[]; keywordBoost: number } {
-  const content = normalizedContent(record);
-  const trackScore = scoreKeywordRules(content, TRACK_RULES);
-  return {
-    tracks: trackScore.labels,
-    keywordBoost: trackScore.score
-  };
-}
-
-function isLowSignalArticle(record: ArticleRecord): boolean {
-  const content = normalizedContent(record);
-
-  if (record.title.trim().length < 12) {
-    return true;
-  }
-
-  return LOW_SIGNAL_PATTERNS.some((pattern) => content.includes(pattern));
-}
-
-function ageInDays(record: ArticleRecord): number {
-  const publishedAtMs = record.publishedAt.getTime();
-  if (!Number.isFinite(publishedAtMs)) {
-    return 365;
-  }
-
-  return Math.max(0, Math.floor((Date.now() - publishedAtMs) / (1000 * 60 * 60 * 24)));
-}
-
-function effectiveReadingTime(record: ArticleRecord): number {
-  const content = normalizedContent(record);
-  const wordTotal = countWords(content);
-  const estimated = estimateReadingTime(content, {
-    wordsPerMinute: 170,
-    minMinutes: wordTotal >= 30 ? 2 : 1
-  });
-
-  return Math.max(asFiniteNumber(record.readingTime, 1), asFiniteNumber(estimated, 1));
-}
-
-function readabilityScore(readingTime: number): number {
-  const idealMidpoint = 10;
-  const distance = Math.abs(readingTime - idealMidpoint);
-  return Math.max(6, 18 - distance * 1.15);
-}
-
-function resolvedBreakthroughScore(record: ArticleRecord): number {
-  const content = normalizedContent(record);
-  const computed = scoreKeywordRules(content, BREAKTHROUGH_RULES).score;
-  return Math.max(asFiniteNumber(record.breakthroughScore, 0), asFiniteNumber(computed, 0));
-}
-
-function resolvedHotTopicScore(record: ArticleRecord): number {
-  const content = normalizedContent(record);
-  const computed = scoreKeywordRules(content, HOT_TOPIC_RULES).score;
-  return Math.max(asFiniteNumber(record.hotTopicScore, 0), asFiniteNumber(computed, 0));
-}
-
-function computeCompositePopularSignal(record: ArticleRecord): number {
-  const externalSignal = Math.min(asFiniteNumber(record.externalPopularityScore, 0), 1100) / 12.5;
-  const viralSignal = Math.min(asFiniteNumber(record.viralVelocityScore, 0), 260) / 3.8;
-  const hotTopicSignal = resolvedHotTopicScore(record) * 0.58;
-  return asFiniteNumber(externalSignal + viralSignal + hotTopicSignal, 0);
-}
-
-function computePopularityScore(record: ArticleRecord): number {
-  const days = ageInDays(record);
-  const readingTime = effectiveReadingTime(record);
-  const recencyScore = (Math.max(0, 160 - days) / 160) * 34;
-  const freshBoost = days <= 2 ? 18 : days <= 7 ? 12 : days <= 21 ? 6 : 0;
-  const sourceScore = SOURCE_POPULARITY_WEIGHTS[record.source.name] ?? 10;
-  const depthScore = Math.min(readingTime, 20) * 0.9;
-  const breakthroughBoost = resolvedBreakthroughScore(record) * 0.36;
-  const popularSignal = computeCompositePopularSignal(record);
-
-  return safeRound(recencyScore + freshBoost + sourceScore + depthScore + breakthroughBoost + popularSignal);
-}
-
-function computeJuniorRelevanceScore(record: ArticleRecord): number {
-  const days = ageInDays(record);
-  const readingTime = effectiveReadingTime(record);
-  const { keywordBoost } = computeLearningTracks(record);
-  const hotTopicScore = resolvedHotTopicScore(record);
-  const breakthroughScore = resolvedBreakthroughScore(record);
-
-  const recency = (Math.max(0, 200 - days) / 200) * 36;
-  const sourceTrust = SOURCE_POPULARITY_WEIGHTS[record.source.name] ?? 10;
-  const readability = readabilityScore(readingTime);
-  const tagSignal = Math.min(record.tags.length, 8) * 1.7;
-  const externalSignalBoost = Math.min(asFiniteNumber(record.externalPopularityScore, 0), 900) / 22;
-  const viralSignalBoost = Math.min(asFiniteNumber(record.viralVelocityScore, 0), 260) / 15;
-  const hotTopicBoost = hotTopicScore * 0.35;
-  const breakthroughBoost = breakthroughScore * 0.48;
-  const lowSignalPenalty = isLowSignalArticle(record) ? 70 : 0;
-  const overlongPenalty = readingTime > 30 ? 9 : 0;
-
-  return safeRound(
-    recency +
-      sourceTrust +
-      readability +
-      tagSignal +
-      keywordBoost +
-      externalSignalBoost +
-      viralSignalBoost +
-      hotTopicBoost +
-      breakthroughBoost -
-      lowSignalPenalty -
-      overlongPenalty
-  );
-}
-
-function importanceLevel(score: number): "must-read" | "recommended" | "optional" {
-  if (score >= 100) {
-    return "must-read";
-  }
-
-  if (score >= 74) {
-    return "recommended";
-  }
-
-  return "optional";
-}
 
 function sortRecords(records: ArticleRecord[], sort: SortDirection): ArticleRecord[] {
   const filtered = records.filter((record) => !isLowSignalArticle(record));
@@ -409,8 +124,9 @@ function mapArticle(record: ArticleRecord): ArticleCard {
 }
 
 export async function getCategoryCards(): Promise<CategoryCard[]> {
-  const categories = await prisma.category.findMany({
+  const categories: CategoryWithSourcesRecord[] = await readCategoryDelegate.findMany({
     orderBy: { name: "asc" },
+    ...withReadCache(["categories"]),
     include: {
       sources: {
         include: {
@@ -422,11 +138,14 @@ export async function getCategoryCards(): Promise<CategoryCard[]> {
     }
   });
 
-  return categories.map((category) => ({
+  return categories.map((category: CategoryWithSourcesRecord) => ({
     id: category.id,
     name: category.name,
     slug: category.slug,
-    articleCount: category.sources.reduce((total, source) => total + source._count.articles, 0)
+    articleCount: category.sources.reduce(
+      (total: number, source: CategoryWithSourcesRecord["sources"][number]) => total + source._count.articles,
+      0
+    )
   }));
 }
 
@@ -435,14 +154,16 @@ async function fetchArticleRecords(params?: {
   orderBy?: Prisma.ArticleOrderByWithRelationInput[];
   skip?: number;
   take?: number;
+  cacheTags?: string[];
 }): Promise<ArticleRecord[]> {
-  const { where, orderBy, skip, take } = params ?? {};
+  const { where, orderBy, skip, take, cacheTags } = params ?? {};
 
-  return prisma.article.findMany({
+  return readArticleDelegate.findMany({
     where,
     orderBy,
     skip,
     take,
+    ...withReadCache(cacheTags ?? ["articles"]),
     include: {
       source: {
         include: {
@@ -466,7 +187,8 @@ export async function getLatestArticles(limit = 10): Promise<ArticleCard[]> {
       }
     },
     orderBy: dbOrderBy("latest"),
-    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit)
+    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit),
+    cacheTags: ["home:latest"]
   });
 
   return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
@@ -480,7 +202,8 @@ export async function getPopularArticles(limit = 10): Promise<ArticleCard[]> {
       }
     },
     orderBy: dbOrderBy("popular"),
-    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit)
+    take: Math.max(limit * CANDIDATE_MULTIPLIER, limit),
+    cacheTags: ["home:popular"]
   });
 
   return records.filter((record) => !isLowSignalArticle(record)).slice(0, limit).map(mapArticle);
@@ -494,7 +217,8 @@ export async function getJuniorMustReadArticles(limit = 8): Promise<ArticleCard[
       }
     },
     orderBy: dbOrderBy("popular"),
-    take: Math.max(limit * 50, 200)
+    take: Math.max(limit * 50, 200),
+    cacheTags: ["home:must-read"]
   });
 
   return sortRecords(records, "popular")
@@ -511,7 +235,8 @@ export async function getRolloutArticles(limit = 8): Promise<ArticleCard[]> {
       }
     },
     orderBy: dbOrderBy("latest"),
-    take: Math.max(limit * 50, 200)
+    take: Math.max(limit * 50, 200),
+    cacheTags: ["home:rollouts"]
   });
 
   return sortRecords(records, "latest")
@@ -521,8 +246,9 @@ export async function getRolloutArticles(limit = 8): Promise<ArticleCard[]> {
 }
 
 export async function getCategoryBySlug(slug: string) {
-  return prisma.category.findUnique({
-    where: { slug }
+  return readCategoryDelegate.findUnique({
+    where: { slug },
+    ...withReadCache([`category:${slug}`])
   });
 }
 
@@ -543,12 +269,16 @@ export async function getCategoryArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    prisma.article.count({ where }),
+    readArticleDelegate.count({
+      where,
+      ...withReadCache([`category:${categorySlug}:count`])
+    }),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
       skip: (safePage - 1) * CATEGORY_PAGE_SIZE,
-      take: CATEGORY_PAGE_SIZE
+      take: CATEGORY_PAGE_SIZE,
+      cacheTags: [`category:${categorySlug}`, `category:${categorySlug}:sort:${sort}`, `page:${safePage}`]
     })
   ]);
 
@@ -562,7 +292,11 @@ export async function getCategoryArticles(params: {
 }
 
 export async function getArticleDetailBySlug(slug: string): Promise<ArticleDetail | null> {
-  const records = await fetchArticleRecords({ where: { slug }, take: 1 });
+  const records = await fetchArticleRecords({
+    where: { slug },
+    take: 1,
+    cacheTags: [`article:${slug}`]
+  });
   const record = records[0];
 
   if (!record) {
@@ -606,12 +340,21 @@ export async function searchArticles(params: {
   };
 
   const [total, records] = await Promise.all([
-    prisma.article.count({ where }),
+    readArticleDelegate.count({
+      where,
+      ...withReadCache([`search:${normalizedQuery || "all"}`, `search:category:${categorySlug ?? "all"}:count`])
+    }),
     fetchArticleRecords({
       where,
       orderBy: dbOrderBy(sort),
       skip: (safePage - 1) * SEARCH_PAGE_SIZE,
-      take: SEARCH_PAGE_SIZE
+      take: SEARCH_PAGE_SIZE,
+      cacheTags: [
+        `search:${normalizedQuery || "all"}`,
+        `search:category:${categorySlug ?? "all"}`,
+        `search:sort:${sort}`,
+        `page:${safePage}`
+      ]
     })
   ]);
 
@@ -640,12 +383,16 @@ export async function getFetchedArticlesByWindow(params: {
   };
 
   const [total, records] = await Promise.all([
-    prisma.article.count({ where }),
+    readArticleDelegate.count({
+      where,
+      ...withReadCache(["ingestion:window:count"])
+    }),
     fetchArticleRecords({
       where,
       orderBy: [{ createdAt: "desc" }],
       skip: (safePage - 1) * INGESTION_PAGE_SIZE,
-      take: INGESTION_PAGE_SIZE
+      take: INGESTION_PAGE_SIZE,
+      cacheTags: ["ingestion:window", `page:${safePage}`]
     })
   ]);
 

@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import type { ArticlePageProps } from "@/app/article/[slug]/page.types";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getArticleDetailBySlug } from "@/services/article.service";
 import { formatDate } from "@/utils/date";
-
-type ArticlePageProps = {
-  params: {
-    slug: string;
-  };
-};
 
 export const revalidate = 600;
 

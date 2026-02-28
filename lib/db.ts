@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { withAccelerate } from "@prisma/extension-accelerate";
 
 import { env } from "@/lib/env";
 
@@ -15,6 +16,16 @@ export const prisma =
       }
     }
   });
+
+export const prismaRead = env.PRISMA_DATABASE_URL
+  ? new PrismaClient({
+      datasources: {
+        db: {
+          url: env.PRISMA_DATABASE_URL
+        }
+      }
+    }).$extends(withAccelerate())
+  : null;
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

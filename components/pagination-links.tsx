@@ -1,11 +1,6 @@
 import Link from "next/link";
 import type { Route } from "next";
-
-type PaginationLinksProps = {
-  page: number;
-  totalPages: number;
-  createHref: (targetPage: number) => string;
-};
+import type { PaginationLinksProps } from "@/components/pagination-links.types";
 
 export function PaginationLinks({ page, totalPages, createHref }: PaginationLinksProps) {
   const previousPage = page - 1;

@@ -1,11 +1,7 @@
 import Link from "next/link";
 
-import type { ArticleCard } from "@/types/article";
+import type { ArticleListItemProps } from "@/components/article-list-item.types";
 import { formatDate } from "@/utils/date";
-
-type ArticleListItemProps = {
-  article: ArticleCard;
-};
 
 function truncateAtWordBoundary(input: string, maxLength: number): string {
   if (input.length <= maxLength) {

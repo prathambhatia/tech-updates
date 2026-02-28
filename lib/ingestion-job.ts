@@ -1,23 +1,10 @@
-import type { IngestAllResult } from "@/types/ingestion";
 import { ingestAllSources } from "@/services/ingestion.service";
 import { refreshExternalPopularitySignals } from "@/services/popularity-signals.service";
-
-export type ManualIngestionStatus = "idle" | "running" | "success" | "error";
-
-type ManualIngestionJobState = {
-  status: ManualIngestionStatus;
-  startedAt: string | null;
-  finishedAt: string | null;
-  message: string | null;
-  result: IngestAllResult | null;
-};
-
-type StartManualIngestionResult = {
-  accepted: boolean;
-  status: ManualIngestionStatus;
-  message: string | null;
-  result: IngestAllResult | null;
-};
+import type {
+  ManualIngestionJobState,
+  ManualIngestionStatus,
+  StartManualIngestionResult
+} from "@/lib/ingestion-job.types";
 
 declare global {
   // eslint-disable-next-line no-var

@@ -3,34 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-type IngestionStatus = "idle" | "running" | "success" | "error";
-
-type IngestionSummary = {
-  startedAt: string;
-  finishedAt: string;
-  fetchedCount: number;
-  createdCount: number;
-  skippedCount: number;
-  repairedDateCount: number;
-};
-
-type IngestStartResponse = {
-  ok?: boolean;
-  accepted?: boolean;
-  status?: IngestionStatus;
-  message?: string | null;
-  result?: Partial<IngestionSummary> | null;
-};
-
-type IngestStatusResponse = {
-  ok?: boolean;
-  status?: IngestionStatus;
-  message?: string | null;
-  startedAt?: string | null;
-  finishedAt?: string | null;
-  result?: Partial<IngestionSummary> | null;
-};
+import type { IngestionStatus, IngestionSummary, IngestStartResponse, IngestStatusResponse } from "@/components/ingestion-controls.types";
 
 function toErrorMessage(input: unknown): string {
   if (input instanceof Error) {

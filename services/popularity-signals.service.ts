@@ -1,41 +1,11 @@
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/db";
-
-type SignalResult = {
-  hnScore: number;
-  redditScore: number;
-  xScore: number;
-  githubScore: number;
-  totalScore: number;
-};
-
-type RefreshResult = {
-  checkedCount: number;
-  updatedCount: number;
-  errors: string[];
-  trendingKeywords: string[];
-};
-
-type BackfillResult = {
-  checkedCount: number;
-  updatedCount: number;
-};
-
-export type PopularityV2Input = {
-  publishedAt: Date;
-  externalPopularityScore: number;
-  externalPopularityPrevScore: number;
-  viralVelocityScore: number;
-  hotTopicScore: number;
-  breakthroughScore: number;
-  popularityLastCheckedAt?: Date | null;
-  sourceName?: string | null;
-  readingTime?: number | null;
-  title?: string | null;
-  summary?: string | null;
-  contentPreview?: string | null;
-  tags?: string[];
-};
+import type {
+  BackfillResult,
+  PopularityV2Input,
+  RefreshResult,
+  SignalResult
+} from "@/services/popularity-signals.types";
 
 const STOPWORDS = new Set([
   "the",

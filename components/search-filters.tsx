@@ -4,23 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { SortDirection } from "@/types/article";
-
-type CategoryOption = {
-  slug: string;
-  name: string;
-};
-
-type SearchFiltersProps = {
-  categories: CategoryOption[];
-  initialQuery: string;
-  initialCategory: string;
-  initialSort: SortDirection;
-};
-
-type DropdownOption = {
-  value: string;
-  label: string;
-};
+import type { DropdownOption, DropdownProps, SearchFiltersProps } from "@/components/search-filters.types";
 
 const SORT_OPTIONS: DropdownOption[] = [
   { value: "popular", label: "Most popular" },
@@ -28,14 +12,7 @@ const SORT_OPTIONS: DropdownOption[] = [
   { value: "oldest", label: "Oldest" }
 ];
 
-function Dropdown(props: {
-  label: string;
-  value: string;
-  options: DropdownOption[];
-  isOpen: boolean;
-  onToggle: () => void;
-  onSelect: (value: string) => void;
-}) {
+function Dropdown(props: DropdownProps) {
   const selected = props.options.find((option) => option.value === props.value);
 
   return (

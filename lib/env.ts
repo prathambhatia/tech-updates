@@ -2,6 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  PRISMA_DATABASE_URL: z.string().optional(),
   INGESTION_AUTO_ENABLED: z.string().default("false"),
   INGESTION_MANUAL_TRIGGER_ENABLED: z.string().default("false"),
   INGESTION_API_SECRET: z.string().optional(),
@@ -17,6 +18,7 @@ const envSchema = z.object({
 
 const parsed = envSchema.safeParse({
   DATABASE_URL: process.env["DATABASE_URL"],
+  PRISMA_DATABASE_URL: process.env["PRISMA_DATABASE_URL"],
   INGESTION_AUTO_ENABLED: process.env["INGESTION_AUTO_ENABLED"],
   INGESTION_MANUAL_TRIGGER_ENABLED: process.env["INGESTION_MANUAL_TRIGGER_ENABLED"],
   INGESTION_API_SECRET: process.env["INGESTION_API_SECRET"],
@@ -38,6 +40,7 @@ const parsedData = parsed.data;
 
 export const env = {
   DATABASE_URL: parsedData["DATABASE_URL"],
+  PRISMA_DATABASE_URL: parsedData["PRISMA_DATABASE_URL"]?.trim() || null,
   INGESTION_AUTO_ENABLED: parsedData["INGESTION_AUTO_ENABLED"] === "true",
   INGESTION_MANUAL_TRIGGER_ENABLED: parsedData["INGESTION_MANUAL_TRIGGER_ENABLED"] === "true",
   INGESTION_API_SECRET: parsedData["INGESTION_API_SECRET"]?.trim() || null,
