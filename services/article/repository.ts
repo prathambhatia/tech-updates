@@ -2,30 +2,56 @@ import type { Prisma } from "@prisma/client";
 
 import {
   type ReadCacheOptions,
+  isAccelerateConnectivityError,
   readArticleDelegate,
   readCategoryDelegate,
   withReadCache
 } from "@/services/article/cache";
+import { prisma } from "@/lib/db";
 import { DISPLAY_CATEGORY_SLUGS } from "@/services/article/category-classifier";
 import type { ArticleRecord, CategoryWithSourcesRecord } from "@/types/services/article.types";
 
+async function runCategoryReadWithFallback<T>(query: (delegate: typeof readCategoryDelegate, disableCache: boolean) => Promise<T>) {
+  try {
+    return await query(readCategoryDelegate, false);
+  } catch (error) {
+    if (!isAccelerateConnectivityError(error)) {
+      throw error;
+    }
+    return query(prisma.category as any, true);
+  }
+}
+
+async function runArticleReadWithFallback<T>(query: (delegate: typeof readArticleDelegate, disableCache: boolean) => Promise<T>) {
+  try {
+    return await query(readArticleDelegate, false);
+  } catch (error) {
+    if (!isAccelerateConnectivityError(error)) {
+      throw error;
+    }
+    return query(prisma.article as any, true);
+  }
+}
+
 export async function getCategoryCardsRecords(cache?: ReadCacheOptions): Promise<CategoryWithSourcesRecord[]> {
-  return readCategoryDelegate.findMany({
-    where: {
-      slug: {
-        in: [...DISPLAY_CATEGORY_SLUGS]
-      }
-    },
-    orderBy: { name: "asc" },
-    ...withReadCache(["categories"], cache),
-    include: {
-      _count: {
-        select: {
-          articles: true
+  return runCategoryReadWithFallback((delegate, disableCache) =>
+    delegate.findMany({
+      where: {
+        slug: {
+          in: [...DISPLAY_CATEGORY_SLUGS]
+        }
+      },
+      orderBy: { name: "asc" },
+      ...withReadCache(["categories"], cache, disableCache),
+      include: {
+        _count: {
+          select: {
+            articles: true
+          }
         }
       }
-    }
-  });
+    })
+  );
 }
 
 export async function getCategoryBySlugRecord(slug: string, cache?: ReadCacheOptions) {
@@ -33,10 +59,12 @@ export async function getCategoryBySlugRecord(slug: string, cache?: ReadCacheOpt
     return null;
   }
 
-  return readCategoryDelegate.findUnique({
-    where: { slug },
-    ...withReadCache([`category:${slug}`], cache)
-  });
+  return runCategoryReadWithFallback((delegate, disableCache) =>
+    delegate.findUnique({
+      where: { slug },
+      ...withReadCache([`category:${slug}`], cache, disableCache)
+    })
+  );
 }
 
 export async function fetchArticleRecords(params?: {
@@ -49,26 +77,28 @@ export async function fetchArticleRecords(params?: {
 }): Promise<ArticleRecord[]> {
   const { where, orderBy, skip, take, cacheTags, cache } = params ?? {};
 
-  return readArticleDelegate.findMany({
-    where,
-    orderBy,
-    skip,
-    take,
-    ...withReadCache(cacheTags ?? ["articles"], cache),
-    include: {
-      category: true,
-      source: {
-        include: {
-          category: true
+  return runArticleReadWithFallback((delegate, disableCache) =>
+    delegate.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+      ...withReadCache(cacheTags ?? ["articles"], cache, disableCache),
+      include: {
+        category: true,
+        source: {
+          include: {
+            category: true
+          }
+        },
+        tags: {
+          include: {
+            tag: true
+          }
         }
       },
-      tags: {
-        include: {
-          tag: true
-        }
-      }
-    }
-  });
+    })
+  );
 }
 
 export async function countArticles(
@@ -76,8 +106,10 @@ export async function countArticles(
   cacheTags: string[],
   cache?: ReadCacheOptions
 ): Promise<number> {
-  return readArticleDelegate.count({
-    where,
-    ...withReadCache(cacheTags, cache)
-  });
+  return runArticleReadWithFallback((delegate, disableCache) =>
+    delegate.count({
+      where,
+      ...withReadCache(cacheTags, cache, disableCache)
+    })
+  );
 }

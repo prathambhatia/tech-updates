@@ -11,6 +11,19 @@ export type ReadCacheOptions = {
   swrSeconds?: number;
 };
 
+export function isAccelerateConnectivityError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message;
+  return (
+    message.includes("P6008") ||
+    message.includes("Accelerate was not able to connect") ||
+    message.includes("db.prisma-data.net")
+  );
+}
+
 function toValidCacheTag(tag: string): string {
   const normalized = tag
     .toLowerCase()
@@ -24,8 +37,8 @@ function toValidCacheTag(tag: string): string {
   return normalized.slice(0, 64);
 }
 
-export function withReadCache(tags: string[], options?: ReadCacheOptions) {
-  if (!prismaRead) {
+export function withReadCache(tags: string[], options?: ReadCacheOptions, disabled = false) {
+  if (!prismaRead || disabled) {
     return {};
   }
 
