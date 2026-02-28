@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { env } from "@/lib/env";
 import { ingestAllSources } from "@/services/ingestion.service";
@@ -34,6 +35,7 @@ async function runIngestion(request: Request): Promise<NextResponse> {
 
   try {
     const result = await ingestAllSources();
+    revalidateTag("articles");
 
     return NextResponse.json({
       ok: true,

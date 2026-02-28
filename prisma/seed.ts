@@ -104,6 +104,42 @@ const sources: SourceSeed[] = [
     categorySlug: "big-tech-architecture"
   },
   {
+    name: "Slack Engineering",
+    url: "https://slack.engineering/",
+    rssUrl: "https://slack.engineering/feed/",
+    categorySlug: "big-tech-architecture"
+  },
+  {
+    name: "Lyft Engineering",
+    url: "https://eng.lyft.com/",
+    rssUrl: "https://eng.lyft.com/feed",
+    categorySlug: "big-tech-architecture"
+  },
+  {
+    name: "GitHub Engineering",
+    url: "https://github.blog/engineering/",
+    rssUrl: "https://github.blog/engineering/feed/",
+    categorySlug: "big-tech-architecture"
+  },
+  {
+    name: "Datadog Engineering",
+    url: "https://www.datadoghq.com/blog/engineering/",
+    rssUrl: "https://www.datadoghq.com/blog/engineering/index.xml",
+    categorySlug: "big-tech-architecture"
+  },
+  {
+    name: "LinkedIn Engineering",
+    url: "https://engineering.linkedin.com/blog",
+    rssUrl: "https://engineering.linkedin.com/blog/rss",
+    categorySlug: "big-tech-architecture"
+  },
+  {
+    name: "Spotify Engineering",
+    url: "https://engineering.atspotify.com/",
+    rssUrl: "https://engineering.atspotify.com/feed/",
+    categorySlug: "big-tech-architecture"
+  },
+  {
     name: "Medium: System Design",
     url: "https://medium.com/tag/system-design",
     rssUrl: "https://medium.com/feed/tag/system-design",
