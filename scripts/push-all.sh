@@ -1,5 +1,5 @@
 #!/bin/bash
-# Push current dev branch changes to dev, main, and prod.
+# Push current dev branch changes to dev and prod.
 # Usage: ./scripts/push-all.sh "your commit message"
 
 set -e
@@ -26,12 +26,6 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 echo "==> Pushing dev..."
 git push origin dev
 
-echo "==> Merging into main and pushing..."
-git checkout main
-git pull origin main
-git merge dev --no-edit
-git push origin main
-
 echo "==> Merging into prod and pushing..."
 git checkout prod
 git pull origin prod
@@ -42,4 +36,4 @@ echo "==> Switching back to dev..."
 git checkout dev
 
 echo ""
-echo "Done! Pushed to dev, main, and prod."
+echo "Done! Pushed to dev and prod."
