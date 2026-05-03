@@ -3,13 +3,15 @@ import { plainText } from "@/utils/text";
 export const CATEGORY_SLUGS = {
   ARCHITECTURE: "big-tech-architecture",
   AI_AGENTS: "ml-ai-agents",
-  OUTAGES: "big-tech-outages"
+  OUTAGES: "big-tech-outages",
+  INTERVIEWS: "interview-experience"
 } as const;
 
 export const DISPLAY_CATEGORY_SLUGS = [
   CATEGORY_SLUGS.ARCHITECTURE,
   CATEGORY_SLUGS.AI_AGENTS,
-  CATEGORY_SLUGS.OUTAGES
+  CATEGORY_SLUGS.OUTAGES,
+  CATEGORY_SLUGS.INTERVIEWS
 ] as const;
 
 const STRONG_OUTAGE_KEYWORDS = [
@@ -47,6 +49,69 @@ const OUTAGE_NOISE_KEYWORDS = [
   "attack benchmark",
   "red team",
   "safety eval"
+];
+
+// Strong signals — any one match is enough to flag as interview content
+const STRONG_INTERVIEW_KEYWORDS = [
+  "interview experience",
+  "interview at google",
+  "interview at amazon",
+  "interview at microsoft",
+  "interview at uber",
+  "interview at meta",
+  "interview at facebook",
+  "interview at apple",
+  "interview at stripe",
+  "interview at netflix",
+  "interview at swiggy",
+  "interview at zomato",
+  "interview at flipkart",
+  "interview at linkedin",
+  "interview at spotify",
+  "sde interview",
+  "sde-1 interview",
+  "sde-2 interview",
+  "sde 1 interview",
+  "sde 2 interview",
+  "software engineer interview",
+  "software developer interview",
+  "got an offer",
+  "received an offer",
+  "offer letter",
+  "got rejected",
+  "i got the job",
+  "how i cracked",
+  "how i got into",
+  "my hiring process",
+  "my interview journey",
+  "interview preparation guide",
+  "cracking the coding interview"
+];
+
+// Supporting signals — need 2+ to classify as interview
+const SUPPORTING_INTERVIEW_KEYWORDS = [
+  "coding round",
+  "coding interview",
+  "technical round",
+  "technical interview",
+  "onsite interview",
+  "onsite round",
+  "hiring process",
+  "interview prep",
+  "interview process",
+  "leetcode",
+  "hackerrank",
+  "dsa round",
+  "data structures",
+  "take home assignment",
+  "take-home",
+  "behavioral round",
+  "hr round",
+  "machine coding",
+  "low level design",
+  "high level design",
+  "lld round",
+  "hld round"
 ];
 
 const AI_STRONG_KEYWORDS = [
@@ -171,6 +236,13 @@ const ARCHITECTURE_SOURCE_NAMES = new Set([
   "Spotify Engineering"
 ]);
 
+const INTERVIEW_SOURCE_NAMES = new Set([
+  "Medium: Interview Experience",
+  "Medium: SDE Interview",
+  "Medium: Coding Interview",
+  "Medium: Tech Interview"
+]);
+
 function containsAnyKeyword(content: string, keywords: string[]): boolean {
   return keywords.some((keyword) => content.includes(keyword));
 }
@@ -197,6 +269,18 @@ function isOutageRelated(content: string): boolean {
   return countKeywordMatches(content, OUTAGE_SUPPORTING_KEYWORDS) >= 2;
 }
 
+function isInterviewRelated(content: string, sourceName: string): boolean {
+  if (INTERVIEW_SOURCE_NAMES.has(sourceName)) {
+    return true;
+  }
+
+  if (containsAnyKeyword(content, STRONG_INTERVIEW_KEYWORDS)) {
+    return true;
+  }
+
+  return countKeywordMatches(content, SUPPORTING_INTERVIEW_KEYWORDS) >= 2;
+}
+
 export function resolveArticleCategorySlug(input: {
   sourceName: string;
   sourceUrl: string;
@@ -214,6 +298,11 @@ export function resolveArticleCategorySlug(input: {
       ...(input.tags ?? [])
     ].join(" ")
   ).toLowerCase();
+
+  // Interview check first — these are very distinct articles
+  if (isInterviewRelated(normalized, input.sourceName)) {
+    return CATEGORY_SLUGS.INTERVIEWS;
+  }
 
   if (isOutageRelated(normalized)) {
     return CATEGORY_SLUGS.OUTAGES;
