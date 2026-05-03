@@ -8,7 +8,8 @@ const prisma = new PrismaClient();
 const categories: CategorySeed[] = [
   { name: "Latest AI & LLM", slug: "ml-ai-agents" },
   { name: "Big Tech Architecture", slug: "big-tech-architecture" },
-  { name: "Big Tech Outages", slug: "big-tech-outages" }
+  { name: "Big Tech Outages", slug: "big-tech-outages" },
+  { name: "Interview Experience", slug: "interview-experience" }
 ];
 
 const sources: SourceSeed[] = [
@@ -175,6 +176,31 @@ const sources: SourceSeed[] = [
     url: "https://medium.com/tag/rag",
     rssUrl: "https://medium.com/feed/tag/rag",
     categorySlug: "ml-ai-agents"
+  },
+  // Medium: interview experience feeds → Interview Experience
+  {
+    name: "Medium: Interview Experience",
+    url: "https://medium.com/tag/interview-experience",
+    rssUrl: "https://medium.com/feed/tag/interview-experience",
+    categorySlug: "interview-experience"
+  },
+  {
+    name: "Medium: SDE Interview",
+    url: "https://medium.com/tag/sde-interview",
+    rssUrl: "https://medium.com/feed/tag/sde-interview",
+    categorySlug: "interview-experience"
+  },
+  {
+    name: "Medium: Coding Interview",
+    url: "https://medium.com/tag/coding-interview",
+    rssUrl: "https://medium.com/feed/tag/coding-interview",
+    categorySlug: "interview-experience"
+  },
+  {
+    name: "Medium: Tech Interview",
+    url: "https://medium.com/tag/tech-interview",
+    rssUrl: "https://medium.com/feed/tag/tech-interview",
+    categorySlug: "interview-experience"
   }
 ];
 

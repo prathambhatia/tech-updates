@@ -23,7 +23,23 @@ const MEDIUM_ALLOWED_TAGS = new Set([
   "llm",
   "transformers",
   "rag",
-  "scaling"
+  "scaling",
+  "interview experience",
+  "interview",
+  "sde interview",
+  "coding interview",
+  "tech interview",
+  "software engineer interview",
+  "software developer interview",
+  "interview preparation",
+  "interview prep",
+  "leetcode",
+  "dsa",
+  "data structures",
+  "machine coding",
+  "low level design",
+  "high level design",
+  "system design interview"
 ]);
 
 const REPAIR_CREATED_PUBLISHED_GAP_MS = 90 * 60 * 1000;

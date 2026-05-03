@@ -9,7 +9,8 @@ const prisma = new PrismaClient();
 const CATEGORY_DEFINITIONS = [
   { name: "Latest AI & LLM", slug: "ml-ai-agents" },
   { name: "Big Tech Architecture", slug: "big-tech-architecture" },
-  { name: "Big Tech Outages", slug: "big-tech-outages" }
+  { name: "Big Tech Outages", slug: "big-tech-outages" },
+  { name: "Interview Experience", slug: "interview-experience" }
 ] as const;
 
 const SOURCE_CATEGORY_BY_NAME: Record<string, string> = {
@@ -41,7 +42,12 @@ const SOURCE_CATEGORY_BY_NAME: Record<string, string> = {
   // Medium AI/LLM feeds
   "Medium: LLM": "ml-ai-agents",
   "Medium: Transformers": "ml-ai-agents",
-  "Medium: RAG": "ml-ai-agents"
+  "Medium: RAG": "ml-ai-agents",
+  // Medium interview experience feeds
+  "Medium: Interview Experience": "interview-experience",
+  "Medium: SDE Interview": "interview-experience",
+  "Medium: Coding Interview": "interview-experience",
+  "Medium: Tech Interview": "interview-experience"
 };
 
 async function ensureCategories() {
