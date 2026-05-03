@@ -7,10 +7,9 @@ import { resolveArticleCategorySlug } from "@/services/article/category-classifi
 const prisma = new PrismaClient();
 
 const CATEGORY_DEFINITIONS = [
-  { name: "ML, AI & Agents", slug: "ml-ai-agents" },
+  { name: "Latest AI & LLM", slug: "ml-ai-agents" },
   { name: "Big Tech Architecture", slug: "big-tech-architecture" },
-  { name: "Big Tech Outages", slug: "big-tech-outages" },
-  { name: "Popular Medium Engineering", slug: "popular-medium-engineering" }
+  { name: "Big Tech Outages", slug: "big-tech-outages" }
 ] as const;
 
 const SOURCE_CATEGORY_BY_NAME: Record<string, string> = {
@@ -29,12 +28,20 @@ const SOURCE_CATEGORY_BY_NAME: Record<string, string> = {
   "Meta Engineering": "big-tech-architecture",
   "Google Cloud Blog": "big-tech-architecture",
   "AWS Architecture": "big-tech-architecture",
-  "Medium: System Design": "popular-medium-engineering",
-  "Medium: Distributed Systems": "popular-medium-engineering",
-  "Medium: LLM": "popular-medium-engineering",
-  "Medium: Transformers": "popular-medium-engineering",
-  "Medium: RAG": "popular-medium-engineering",
-  "Medium: Scaling": "popular-medium-engineering"
+  "Slack Engineering": "big-tech-architecture",
+  "Lyft Engineering": "big-tech-architecture",
+  "GitHub Engineering": "big-tech-architecture",
+  "Datadog Engineering": "big-tech-architecture",
+  "LinkedIn Engineering": "big-tech-architecture",
+  "Spotify Engineering": "big-tech-architecture",
+  // Medium architecture/system-design feeds
+  "Medium: System Design": "big-tech-architecture",
+  "Medium: Distributed Systems": "big-tech-architecture",
+  "Medium: Scaling": "big-tech-architecture",
+  // Medium AI/LLM feeds
+  "Medium: LLM": "ml-ai-agents",
+  "Medium: Transformers": "ml-ai-agents",
+  "Medium: RAG": "ml-ai-agents"
 };
 
 async function ensureCategories() {
@@ -180,7 +187,11 @@ async function backfillArticleCategories(categoryIdBySlug: Map<string, string>) 
 }
 
 async function deleteLegacyCategories() {
-  const legacySlugs = ["frontier-ai-agents", "ai-tooling-infra"];
+  const legacySlugs = [
+    "frontier-ai-agents",
+    "ai-tooling-infra",
+    "popular-medium-engineering"
+  ];
   let deletedCount = 0;
 
   for (const slug of legacySlugs) {
@@ -193,14 +204,19 @@ async function deleteLegacyCategories() {
       continue;
     }
 
-    const inUse = await Promise.all([
+    const [sourceCount, articleCount] = await Promise.all([
       prisma.source.count({ where: { categoryId: legacy.id } }),
       prisma.article.count({ where: { categoryId: legacy.id } })
     ]);
 
-    if (inUse[0] === 0 && inUse[1] === 0) {
+    if (sourceCount === 0 && articleCount === 0) {
       await prisma.category.delete({ where: { id: legacy.id } });
       deletedCount += 1;
+      console.log(`[backfill-article-categories] deleted legacy category: ${slug}`);
+    } else {
+      console.log(
+        `[backfill-article-categories] skipped deleting ${slug}: ${sourceCount} sources, ${articleCount} articles still assigned`
+      );
     }
   }
 

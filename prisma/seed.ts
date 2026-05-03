@@ -6,10 +6,9 @@ import type { CategorySeed, SourceSeed } from "@/types/prisma/seed.types";
 const prisma = new PrismaClient();
 
 const categories: CategorySeed[] = [
-  { name: "ML, AI & Agents", slug: "ml-ai-agents" },
+  { name: "Latest AI & LLM", slug: "ml-ai-agents" },
   { name: "Big Tech Architecture", slug: "big-tech-architecture" },
-  { name: "Big Tech Outages", slug: "big-tech-outages" },
-  { name: "Popular Medium Engineering", slug: "popular-medium-engineering" }
+  { name: "Big Tech Outages", slug: "big-tech-outages" }
 ];
 
 const sources: SourceSeed[] = [
@@ -139,41 +138,43 @@ const sources: SourceSeed[] = [
     rssUrl: "https://engineering.atspotify.com/feed/",
     categorySlug: "big-tech-architecture"
   },
+  // Medium: architecture / system design feeds → Big Tech Architecture
   {
     name: "Medium: System Design",
     url: "https://medium.com/tag/system-design",
     rssUrl: "https://medium.com/feed/tag/system-design",
-    categorySlug: "popular-medium-engineering"
+    categorySlug: "big-tech-architecture"
   },
   {
     name: "Medium: Distributed Systems",
     url: "https://medium.com/tag/distributed-systems",
     rssUrl: "https://medium.com/feed/tag/distributed-systems",
-    categorySlug: "popular-medium-engineering"
-  },
-  {
-    name: "Medium: LLM",
-    url: "https://medium.com/tag/llm",
-    rssUrl: "https://medium.com/feed/tag/llm",
-    categorySlug: "popular-medium-engineering"
-  },
-  {
-    name: "Medium: Transformers",
-    url: "https://medium.com/tag/transformers",
-    rssUrl: "https://medium.com/feed/tag/transformers",
-    categorySlug: "popular-medium-engineering"
-  },
-  {
-    name: "Medium: RAG",
-    url: "https://medium.com/tag/rag",
-    rssUrl: "https://medium.com/feed/tag/rag",
-    categorySlug: "popular-medium-engineering"
+    categorySlug: "big-tech-architecture"
   },
   {
     name: "Medium: Scaling",
     url: "https://medium.com/tag/scaling",
     rssUrl: "https://medium.com/feed/tag/scaling",
-    categorySlug: "popular-medium-engineering"
+    categorySlug: "big-tech-architecture"
+  },
+  // Medium: AI / LLM feeds → Latest AI & LLM
+  {
+    name: "Medium: LLM",
+    url: "https://medium.com/tag/llm",
+    rssUrl: "https://medium.com/feed/tag/llm",
+    categorySlug: "ml-ai-agents"
+  },
+  {
+    name: "Medium: Transformers",
+    url: "https://medium.com/tag/transformers",
+    rssUrl: "https://medium.com/feed/tag/transformers",
+    categorySlug: "ml-ai-agents"
+  },
+  {
+    name: "Medium: RAG",
+    url: "https://medium.com/tag/rag",
+    rssUrl: "https://medium.com/feed/tag/rag",
+    categorySlug: "ml-ai-agents"
   }
 ];
 
@@ -216,7 +217,8 @@ async function main() {
     });
   }
 
-  for (const legacySlug of ["frontier-ai-agents", "ai-tooling-infra"]) {
+  // Clean up removed categories (no sources, no articles referencing them)
+  for (const legacySlug of ["frontier-ai-agents", "ai-tooling-infra", "popular-medium-engineering"]) {
     const legacy = await prisma.category.findUnique({
       where: { slug: legacySlug },
       select: { id: true }
@@ -226,18 +228,16 @@ async function main() {
       continue;
     }
 
-    const sourceCount = await prisma.source.count({
-      where: {
-        categoryId: legacy.id
-      }
-    });
+    const [sourceCount, articleCount] = await Promise.all([
+      prisma.source.count({ where: { categoryId: legacy.id } }),
+      prisma.article.count({ where: { categoryId: legacy.id } })
+    ]);
 
-    if (sourceCount === 0) {
-      await prisma.category.delete({
-        where: {
-          id: legacy.id
-        }
-      });
+    if (sourceCount === 0 && articleCount === 0) {
+      await prisma.category.delete({ where: { id: legacy.id } });
+      console.log(`Deleted legacy category: ${legacySlug}`);
+    } else {
+      console.log(`Cannot delete ${legacySlug} yet: ${sourceCount} sources, ${articleCount} articles still assigned`);
     }
   }
 }
