@@ -18,7 +18,7 @@ function toSort(value: string | undefined): SortDirection {
     return "oldest";
   }
 
-  return "popular";
+  return "latest";
 }
 
 function toPage(value: string | undefined): number {
@@ -75,16 +75,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
         <h1 className="mt-2 font-display text-4xl font-semibold text-ink-900 dark:text-slate-100">{category.name}</h1>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
-            href={`/category/${category.slug}?sort=popular&page=1`}
-            className={`rounded-full border px-3 py-1 text-sm font-medium ${
-              sort === "popular"
-                ? "border-accent-600 bg-accent-600 text-white"
-                : "border-ink-300 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
-            }`}
-          >
-            Popular
-          </Link>
-          <Link
             href={`/category/${category.slug}?sort=latest&page=1`}
             className={`rounded-full border px-3 py-1 text-sm font-medium ${
               sort === "latest"
@@ -93,6 +83,16 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
             }`}
           >
             Latest
+          </Link>
+          <Link
+            href={`/category/${category.slug}?sort=popular&page=1`}
+            className={`rounded-full border px-3 py-1 text-sm font-medium ${
+              sort === "popular"
+                ? "border-accent-600 bg-accent-600 text-white"
+                : "border-ink-300 text-ink-700 hover:border-accent-600 hover:text-accent-600 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-200 dark:hover:border-teal-300 dark:hover:text-teal-200"
+            }`}
+          >
+            Popular
           </Link>
           <Link
             href={`/category/${category.slug}?sort=oldest&page=1`}
